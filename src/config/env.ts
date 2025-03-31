@@ -4,7 +4,8 @@ dotenv.config();
 
 export const config = {
   anthropicSecretKey: process.env.ANTHROPIC_API_KEY,
-  port: process.env.PORT || 4000
+  port: process.env.PORT || 4000,
+  sessionSecret: process.env.SESSION_SECRET
 };
 
 if (!config.anthropicSecretKey) {
