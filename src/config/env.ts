@@ -5,7 +5,12 @@ dotenv.config();
 export const config = {
   anthropicSecretKey: process.env.ANTHROPIC_API_KEY,
   port: process.env.PORT || 4000,
-  sessionSecret: process.env.SESSION_SECRET
+  sessionSecret: process.env.SESSION_SECRET,
+  cors: [
+    'http://localhost:5173',
+    'https://paperclip-liart.vercel.app',
+    'https://loekthedreamer.ngrok.app'
+  ]
 };
 
 if (!config.anthropicSecretKey) {
