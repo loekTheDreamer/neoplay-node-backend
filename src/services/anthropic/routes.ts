@@ -105,7 +105,7 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
         // Explicitly tell client context is missing, maybe setup wasn't called?
         reply.raw.writeHead(400, {
           'Content-Type': 'text/plain',
-          'Access-Control-Allow-Origin': 'http://localhost:5173',
+          'Access-Control-Allow-Origin': config.cors,
           'Access-Control-Allow-Credentials': 'true'
         });
         reply.raw.end('Chat context not found in session. Please setup first.');
@@ -133,7 +133,7 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
           Connection: 'keep-alive',
-          'Access-Control-Allow-Origin': 'http://localhost:5173',
+          'Access-Control-Allow-Origin': config.cors,
           'Access-Control-Allow-Credentials': 'true'
         });
         console.log(
