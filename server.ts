@@ -39,11 +39,7 @@ declare module 'fastify' {
 }
 // Register plugins
 fastify.register(fastifyCors, {
-  origin: [
-    'http://localhost:5173',
-    'https://paperclip-liart.vercel.app',
-    'https://loekthedreamer.ngrok.app'
-  ], // Allow requests from your frontend
+  origin: config.cors, // Allow requests from your frontend
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 });
