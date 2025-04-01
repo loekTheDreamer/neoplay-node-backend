@@ -7,7 +7,6 @@ import { registerAnthropicRoutes } from './src/services/anthropic/routes.ts';
 
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
-import { FastifySSEPlugin } from 'fastify-sse-v2';
 
 const fastify = Fastify({ logger: true });
 
@@ -18,25 +17,14 @@ fastify.register(fastifyCookie);
 fastify.register(fastifySession, {
   secret: config.sessionSecret as string, // Ensure this is a strong, private secret
   cookie: {
-    // secure: false, // REQUIRED for SameSite=None and HTTPS (ngrok provides HTTPS)
-
-    // ngrok
-    secure: true,
+    secure: true, // REQUIRED for SameSite=None and HTTPS (ngrok provides HTTPS)
     httpOnly: true, // Good practice: Cookie cannot be accessed by client-side scripts
     maxAge: 60 * 60 * 1000, // 1 hour
     sameSite: 'none' // <-- THE KEY FIX: Allow cross-origin cookie sending
-
-    // local
-    // secure: false,
-    // httpOnly: true, // Good practice: Cookie cannot be accessed by client-side scripts
-    // maxAge: 60 * 60 * 1000 // 1 hour
-
     // path: '/' // Usually defaults to '/' but can be explicit if needed
-    // path: '/' // Explicitly set path
   },
   saveUninitialized: false
 });
-fastify.register(FastifySSEPlugin);
 
 // Declare session property on FastifyRequest for TypeScript
 declare module 'fastify' {
@@ -59,24 +47,8 @@ fastify.register(fastifyCors, {
     'https://loekthedreamer-secondary.ngrok.app' // Your current one
     // Add any other origins you need to support
   ],
-  // origin: 'https://paperclip-liart.vercel.app', // Single origin for testing
-  // origin: (origin, cb) => {
-  //   const allowedOrigins = [
-  //     'http://localhost:5173',
-  //     'https://paperclip-liart.vercel.app',
-  //     'https://loekthedreamer.ngrok.app',
-  //     'https://loekthedreamer-secondary.ngrok.app'
-  //   ];
-  //   if (!origin || allowedOrigins.includes(origin)) {
-  //     cb(null, origin || 'https://paperclip-liart.vercel.app'); // Return exact origin, not '*'
-  //   } else {
-  //     cb(new Error('Not allowed by CORS'), false);
-  //   }
-  // },
-  // origin: '*', // Allow any origin
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true, // REQUIRED to allow cookies/auth headers cross-origin
-  preflight: true // Explicitly enable preflight handling
+  credentials: true // REQUIRED to allow cookies/auth headers cross-origin
 });
 fastify.register(fastifyFormBody);
 fastify.register(fastifyWs); // Assuming you might need WebSockets elsewhere
