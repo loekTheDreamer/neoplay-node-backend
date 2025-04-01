@@ -177,147 +177,102 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
       );
       const { chatHistory, systemPrompt } = context;
 
-      console.log(
-        'Headers prepared by Fastify before manual writeHead:',
-        reply.getHeaders()
-      );
-      reply.sse(
-        (async function* () {
-          try {
-            const stream = await client.messages.create({
-              max_tokens: tokenCount,
-              messages: chatHistory,
-              model: model,
-              system: systemPrompt,
-              stream: true
-            });
+      let eventCounter = 0; // Counter for SSE 'id' field
 
-            let eventCounter = 0;
-            for await (const event of stream) {
-              eventCounter++;
-              const sseId = `${request.session.sessionId}-${eventCounter}`;
-              yield {
-                id: sseId,
-                event: event.type,
-                data: JSON.stringify(event)
-              };
-            }
+      try {
+        // --- TEMPORARY DEBUG LOG ---
+        console.log(
+          'Headers prepared by Fastify before manual writeHead:',
+          reply.getHeaders()
+        );
+        // --- END DEBUG LOG ---
+        // --- Set Headers for SSE (using reply.raw) ---
+        // CORS headers should be added by the plugin *before* this point
+        // for the initial 200 response.
+        reply.raw.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
+          // NO CORS headers here - rely on the plugin
+        });
+        console.log(
+          `SSE headers sent for session ${request.session.sessionId}. Waiting for AI stream...`
+        );
 
-            // Send end event
-            yield {
-              id: `${request.session.sessionId}-end`,
-              event: 'end',
-              data: JSON.stringify({ message: 'Stream finished' })
-            };
-          } catch (error: any) {
-            console.error(
-              `Error during streaming for session ${request.session.sessionId}:`,
-              error
-            );
-            yield {
-              event: 'error',
-              data: JSON.stringify({
-                error: 'Streaming error occurred',
-                details: error.message
-              })
-            };
+        // --- Call the AI Streaming API ---
+        // Ensure 'client', 'tokenCount', 'model' are defined/imported correctly
+        const stream = await client.messages.create({
+          max_tokens: tokenCount,
+          messages: chatHistory,
+          model: model,
+          system: systemPrompt,
+          stream: true
+        });
+
+        // --- Iterate and Send Events ---
+        for await (const event of stream) {
+          eventCounter++;
+          const sseId = `${request.session.sessionId}-${eventCounter}`; // Unique ID per event in stream
+
+          // Format according to SSE spec: id, event, data (multiline data needs care)
+          // Ensure data is valid JSON before stringifying
+          const jsonData = JSON.stringify(event);
+          const sseFormattedEvent = `id: ${sseId}\nevent: ${event.type}\ndata: ${jsonData}\n\n`;
+
+          if (!reply.raw.writableEnded && !reply.raw.write(sseFormattedEvent)) {
+            // Handle backpressure: Wait for drain event if write returns false
+            await new Promise((resolve) => reply.raw.once('drain', resolve));
           }
-        })()
-      );
-      // try {
-      //   // --- TEMPORARY DEBUG LOG ---
-      //   console.log(
-      //     'Headers prepared by Fastify before manual writeHead:',
-      //     reply.getHeaders()
-      //   );
-      //   // --- END DEBUG LOG ---
-      //   // --- Set Headers for SSE (using reply.raw) ---
-      //   // CORS headers should be added by the plugin *before* this point
-      //   // for the initial 200 response.
-      //   reply.raw.writeHead(200, {
-      //     'Content-Type': 'text/event-stream',
-      //     'Cache-Control': 'no-cache',
-      //     Connection: 'keep-alive'
-      //     // NO CORS headers here - rely on the plugin
-      //   });
-      //   console.log(
-      //     `SSE headers sent for session ${request.session.sessionId}. Waiting for AI stream...`
-      //   );
 
-      //   // --- Call the AI Streaming API ---
-      //   // Ensure 'client', 'tokenCount', 'model' are defined/imported correctly
-      //   const stream = await client.messages.create({
-      //     max_tokens: tokenCount,
-      //     messages: chatHistory,
-      //     model: model,
-      //     system: systemPrompt,
-      //     stream: true
-      //   });
+          // Check if connection closed between write and loop condition
+          if (reply.raw.writableEnded) {
+            console.log(
+              `Stream for session ${request.session.sessionId} closed by client during event sending.`
+            );
+            break; // Exit loop if client disconnected
+          }
+        }
 
-      //   // --- Iterate and Send Events ---
-      //   for await (const event of stream) {
-      //     eventCounter++;
-      //     const sseId = `${request.session.sessionId}-${eventCounter}`; // Unique ID per event in stream
-
-      //     // Format according to SSE spec: id, event, data (multiline data needs care)
-      //     // Ensure data is valid JSON before stringifying
-      //     const jsonData = JSON.stringify(event);
-      //     const sseFormattedEvent = `id: ${sseId}\nevent: ${event.type}\ndata: ${jsonData}\n\n`;
-
-      //     if (!reply.raw.writableEnded && !reply.raw.write(sseFormattedEvent)) {
-      //       // Handle backpressure: Wait for drain event if write returns false
-      //       await new Promise((resolve) => reply.raw.once('drain', resolve));
-      //     }
-
-      //     // Check if connection closed between write and loop condition
-      //     if (reply.raw.writableEnded) {
-      //       console.log(
-      //         `Stream for session ${request.session.sessionId} closed by client during event sending.`
-      //       );
-      //       break; // Exit loop if client disconnected
-      //     }
-      //   }
-
-      //   // --- Signal Stream End ---
-      //   if (!reply.raw.writableEnded) {
-      //     const endEventData = JSON.stringify({ message: 'Stream finished' });
-      //     const endEvent = `id: ${request.session.sessionId}-end\nevent: end\ndata: ${endEventData}\n\n`;
-      //     reply.raw.write(endEvent);
-      //     console.log(
-      //       `Sent SSE 'end' event for session ${request.session.sessionId}`
-      //     );
-      //   }
-      // } catch (error: any) {
-      //   console.error(
-      //     `Error during streaming for session ${request.session.sessionId}:`,
-      //     error
-      //   );
-      //   if (!reply.raw.writableEnded) {
-      //     // Optionally send an 'error' event to the client before closing
-      //     try {
-      //       const errorData = JSON.stringify({
-      //         error: 'Streaming error occurred',
-      //         details: error.message
-      //       });
-      //       const errorEvent = `event: error\ndata: ${errorData}\n\n`;
-      //       reply.raw.write(errorEvent);
-      //     } catch (writeError) {
-      //       console.error('Failed to write error event to client:', writeError);
-      //     }
-      //   }
-      // } finally {
-      //   // --- Ensure Connection Closure ---
-      //   if (!reply.raw.writableEnded) {
-      //     reply.raw.end(); // Close the connection cleanly
-      //     console.log(
-      //       `/stream connection explicitly ended for session ${request.session.sessionId}.`
-      //     );
-      //   } else {
-      //     console.log(
-      //       `/stream connection was already ended for session ${request.session.sessionId}.`
-      //     );
-      //   }
-      // }
+        // --- Signal Stream End ---
+        if (!reply.raw.writableEnded) {
+          const endEventData = JSON.stringify({ message: 'Stream finished' });
+          const endEvent = `id: ${request.session.sessionId}-end\nevent: end\ndata: ${endEventData}\n\n`;
+          reply.raw.write(endEvent);
+          console.log(
+            `Sent SSE 'end' event for session ${request.session.sessionId}`
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          `Error during streaming for session ${request.session.sessionId}:`,
+          error
+        );
+        if (!reply.raw.writableEnded) {
+          // Optionally send an 'error' event to the client before closing
+          try {
+            const errorData = JSON.stringify({
+              error: 'Streaming error occurred',
+              details: error.message
+            });
+            const errorEvent = `event: error\ndata: ${errorData}\n\n`;
+            reply.raw.write(errorEvent);
+          } catch (writeError) {
+            console.error('Failed to write error event to client:', writeError);
+          }
+        }
+      } finally {
+        // --- Ensure Connection Closure ---
+        if (!reply.raw.writableEnded) {
+          reply.raw.end(); // Close the connection cleanly
+          console.log(
+            `/stream connection explicitly ended for session ${request.session.sessionId}.`
+          );
+        } else {
+          console.log(
+            `/stream connection was already ended for session ${request.session.sessionId}.`
+          );
+        }
+      }
       // IMPORTANT: Do not call reply.send() when manually handling reply.raw
     }
   );
