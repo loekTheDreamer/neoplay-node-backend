@@ -56,7 +56,7 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
     return response;
   });
 
-  fastify.post('/setup-chat-context', async (request, reply) => {
+  fastify.post('/setup-anthropic-stream', async (request, reply) => {
     // console.log('Incoming cookies:', request.cookies);
     // console.log('Session ID before:', request.session.sessionId);
 
@@ -176,7 +176,7 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
 
   // SSE stream endpoint
   fastify.get(
-    '/stream',
+    '/anthropic-stream',
     async (request: FastifyRequest, reply: FastifyReply) => {
       // Log session ID *immediately* upon receiving request
       // console.log('Cookies:', request.cookies);
