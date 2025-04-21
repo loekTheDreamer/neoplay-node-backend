@@ -15,9 +15,9 @@ interface ChatRequest {
   systemPrompt?: string;
 }
 
-let model = 'claude-3-7-sonnet-20250219';
+// let model = 'claude-3-7-sonnet-20250219';
 // const model2 = "claude-3-5-sonnet-20241022"
-// const model = 'claude-3-5-haiku-20241022';
+let model = 'claude-3-5-haiku-20241022';
 
 console.log('USING MODEL:', model);
 let tokenCount = 0;
@@ -30,16 +30,16 @@ if (model === 'claude-3-5-haiku-20241022') {
 
 export function registerAnthropicRoutes(fastify: FastifyInstance) {
   // Root Route
-  fastify.get('/', async (request, reply) => {
-    reply.send({ message: 'Anthropic Media Stream Server is running!' });
-  });
+  // fastify.get('/', async (request, reply) => {
+  //   reply.send({ message: 'Anthropic Media Stream Server is running!' });
+  // });
 
   fastify.post('/chat', async (request, reply) => {
     console.log('/chat...');
 
     const { chatHistory, systemPrompt } = request.body as ChatRequest;
     // console.log('chatHistory:', chatHistory);
-    // console.log('prompt:', systemPrompt);
+    console.log('prompt:', systemPrompt);
 
     const response = await client.messages.create({
       max_tokens: tokenCount,
@@ -221,7 +221,7 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
         `Retrieved context from session ${request.session.sessionId}, context cleared from session.`
       );
       const { chatHistory, systemPrompt } = context;
-
+      console.log('prompt:', systemPrompt);
       console.log(
         'Headers prepared by Fastify before manual writeHead:',
         reply.getHeaders()
