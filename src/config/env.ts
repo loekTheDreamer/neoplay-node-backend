@@ -6,6 +6,7 @@ export const config = {
   anthropicSecretKey: process.env.ANTHROPIC_API_KEY,
   port: process.env.PORT || 4000,
   sessionSecret: process.env.SESSION_SECRET,
+  xaiApiKey: process.env.XAI_API_KEY,
   cors: [
     'http://localhost:5173',
     'https://paperclip-liart.vercel.app',
@@ -15,7 +16,7 @@ export const config = {
   ]
 };
 
-if (!config.anthropicSecretKey) {
-  console.error('Missing Anthropic API key. Please set in the .env file.');
+if (!config.anthropicSecretKey || !config.xaiApiKey) {
+  console.error('Missing API keys. Please set in the .env file.');
   process.exit(1);
 }
