@@ -3,6 +3,7 @@ import { promises as fsp, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { GameFiles } from './route';
 import { FastifyReply } from 'fastify/types/reply';
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,14 +86,13 @@ export async function publish({
   reply
 }: PublishGameRequest): Promise<void> {
   try {
+    const id = uuidv4();
     const srcDir = path.resolve(
       __dirname,
       `../../../public/currentGame/${address}`
     );
-    const destDir = path.resolve(
-      __dirname,
-      `../../../public/published/${title}`
-    );
+    const destDir = path.resolve(__dirname, `../../../public/published/${id}`);
+    console.log('title:', title);
     if (!existsSync(srcDir)) {
       reply.status(404).send({ error: 'Game not found' });
       return;
@@ -126,11 +126,36 @@ export async function publish({
       await copyRecursive(srcDir, destDir);
     }
 
-    // Create info.json
-    const info = { author: address, title };
-    const infoPath = path.join(destDir, 'info.json');
-    await fsp.writeFile(infoPath, JSON.stringify(info, null, 2), 'utf-8');
+    // Update published/games.json with new game info
+    const info = { author: address, title, id: id, date: new Date() };
+    const publishedDir = path.resolve(__dirname, '../../../public/published');
+    const gamesJsonPath = path.join(publishedDir, 'games.json');
+    let games: any[] = [];
+    if (existsSync(gamesJsonPath)) {
+      const data = await fsp.readFile(gamesJsonPath, 'utf-8');
+      try {
+        games = JSON.parse(data);
+        if (!Array.isArray(games)) games = [];
+      } catch {
+        games = [];
+      }
+    }
+    games.push(info);
+    await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
   } catch (error) {
     console.log('error publishing game:', error);
+  }
+}
+
+export async function getPublishedGames() {
+  try {
+    const games = await fsp.readFile(
+      path.resolve(__dirname, '../../../public/published/games.json'),
+      'utf-8'
+    );
+    console.log('games:', games);
+    return games;
+  } catch (err) {
+    console.log('error fetching published games:', err);
   }
 }

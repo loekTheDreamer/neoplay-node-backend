@@ -1,6 +1,13 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
-import { deleteGame, publish, saveGameFile } from './gameHelpers';
+import {
+  deleteGame,
+  getPublishedGames,
+  publish,
+  saveGameFile
+} from './gameHelpers';
+import { promises as fsp } from 'fs';
+import * as path from 'path';
 
 export interface GameFiles {
   filename: string;
@@ -85,10 +92,28 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       });
     }
 
+    if (!title) {
+      return reply.status(400).send({
+        error: 'Missing or invalid title in request body'
+      });
+    }
+
     try {
       await publish({ address, title, reply });
       return reply.send({ success: true });
     } catch (err) {
+      return reply.status(500).send({ error: (err as Error).message });
+    }
+  });
+
+  fastify.get('/published', async (request, reply) => {
+    try {
+      const games = await getPublishedGames();
+      console.log('Games to send:', games);
+
+      return reply.code(200).send(games);
+    } catch (err) {
+      console.log('error fetching published games:', err);
       return reply.status(500).send({ error: (err as Error).message });
     }
   });
