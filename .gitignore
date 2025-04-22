@@ -56,3 +56,8 @@ build/
 
 # Google OAuth token
 token.json
+
+# games
+public/currentGame
+public/published
+
