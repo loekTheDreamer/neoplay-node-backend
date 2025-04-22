@@ -2,14 +2,15 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
 import { saveGameFile } from './saveGameFile';
 
-interface GameFiles {
+export interface GameFiles {
   filename: string;
   code: string;
   type: string;
 }
 
-type SaveGameRequest = {
+export type SaveGameRequest = {
   gameFiles: GameFiles[];
+  address: string;
 };
 
 export function registerGameRoutes(fastify: FastifyInstance) {
@@ -18,37 +19,32 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     try {
       const body = request.body as SaveGameRequest;
 
-      console.log('body:', body);
-      if (
-        !body ||
-        !Array.isArray(body.gameFiles) ||
-        body.gameFiles.length === 0
-      ) {
+      const { gameFiles, address } = body;
+
+      console.log('address:', address);
+
+      console.log('gameFiles:', gameFiles);
+
+      if (!gameFiles || !Array.isArray(gameFiles) || gameFiles.length === 0) {
         return reply.status(400).send({
           error: 'Missing or invalid gameFiles array in request body'
         });
       }
 
-      // Save each file
-      for (const fileObj of body.gameFiles) {
-        if (
-          !fileObj.filename ||
-          typeof fileObj.filename !== 'string' ||
-          !fileObj.code ||
-          typeof fileObj.code !== 'string'
-        ) {
-          return reply
-            .status(400)
-            .send({ error: 'Invalid file object in gameFiles' });
-        }
-        console.log('go save it');
-        await saveGameFile(fileObj.filename, fileObj.code);
+      if (!address) {
+        return reply.status(400).send({
+          error: 'Missing or invalid address in request body'
+        });
       }
+
+      // Save each file
+      await saveGameFile({ gameFiles, address, reply });
+
       return reply.send({ success: true });
     } catch (err) {
       return reply.status(500).send({ error: (err as Error).message });
     }
   });
 
-  //   fastify.post('/delete', async (request, reply) => {});
+  fastify.post('/delete', async (request, reply) => {});
 }
