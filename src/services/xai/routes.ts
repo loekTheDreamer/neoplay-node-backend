@@ -2,6 +2,13 @@ import OpenAI from 'openai';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
 
+// Inline type for OpenAI ChatCompletionMessageParam
+// (role: 'system' | 'user' | 'assistant', content: string)
+type OpenAIChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
 // const client = new Anthropic({
 //   apiKey: config.anthropicSecretKey
 // });
@@ -78,8 +85,9 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       console.log(
         `Retrieved context from session ${request.session.sessionId}, context cleared from session.`
       );
-      const { chatHistory, systemPrompt } = context;
-      console.log('prompt:', systemPrompt);
+      const { chatHistory } = context;
+
+      console.log('chatHistory:', chatHistory);
       console.log(
         'Headers prepared by Fastify before manual writeHead:',
         reply.getHeaders()
@@ -87,30 +95,44 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       reply.sse(
         (async function* () {
           try {
-            const stream = await client.messages.create({
-              max_tokens: tokenCount,
+            // Prepare messages array for OpenAI format
+            // const messages: OpenAIChatMessage[] = [];
+
+            // if (Array.isArray(chatHistory)) {
+            //   for (const msg of chatHistory) {
+            //     // Only allow roles 'user' or 'assistant', and enforce type
+            //     if (msg.role === 'user' || msg.role === 'assistant') {
+            //       messages.push({ role: msg.role, content: msg.content });
+            //     }
+            //   }
+            // }
+
+            const stream = await openai.chat.completions.create({
+              model: model, // e.g., 'grok-3-mini-beta'
               messages: chatHistory,
-              model: model,
-              system: systemPrompt,
+              // max_tokens: tokenCount,
               stream: true
             });
 
             let eventCounter = 0;
-            for await (const event of stream) {
+            for await (const chunk of stream) {
               eventCounter++;
               const sseId = `${request.session.sessionId}-${eventCounter}`;
-              yield {
-                id: sseId,
-                event: event.type,
-                data: JSON.stringify(event)
-              };
+              // Only send the content field, if present
+              const content = chunk.choices?.[0]?.delta?.content;
+              if (content) {
+                yield {
+                  id: sseId,
+                  event: 'message',
+                  data: JSON.stringify({ content })
+                };
+              }
             }
-
-            // Send end event
+            // After stream ends, yield explicit done event
             yield {
-              id: `${request.session.sessionId}-end`,
-              event: 'end',
-              data: JSON.stringify({ message: 'Stream finished' })
+              id: `${request.session.sessionId}-done`,
+              event: 'done',
+              data: JSON.stringify({ done: true })
             };
           } catch (error: any) {
             console.error(
