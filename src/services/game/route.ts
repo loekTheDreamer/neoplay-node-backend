@@ -27,6 +27,7 @@ export type DeleteGameRequest = {
 export type PublishGameRequest = {
   address: string;
   title: string;
+  id?: string;
 };
 
 export function registerGameRoutes(fastify: FastifyInstance) {
@@ -84,7 +85,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
   fastify.post('/publish', async (request, reply) => {
     const body = request.body as PublishGameRequest;
 
-    const { address, title } = body;
+    const { address, title, id } = body;
 
     if (!address) {
       return reply.status(400).send({
@@ -99,8 +100,9 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      await publish({ address, title, reply });
-      return reply.send({ success: true });
+      const gameId = await publish({ address, title, id, reply });
+      return reply.code(200).send(gameId);
+      // return reply.send({ success: true });
     } catch (err) {
       return reply.status(500).send({ error: (err as Error).message });
     }

@@ -26,11 +26,11 @@ interface ChatRequest {
   systemPrompt?: string;
 }
 
-// let model = 'grok-3-beta';
+let model = 'grok-3-beta';
 
 // let model = 'grok-3-latest';
 
-let model = 'grok-3-mini-beta';
+// let model = 'grok-3-mini-beta';
 
 console.log('USING MODEL:', model);
 let tokenCount = 0;

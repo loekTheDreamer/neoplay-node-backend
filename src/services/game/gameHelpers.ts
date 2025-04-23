@@ -17,6 +17,7 @@ interface SaveGameFileRequest {
 interface PublishGameRequest {
   address: string;
   title: string;
+  id?: string;
   reply: FastifyReply;
 }
 
@@ -56,8 +57,9 @@ export async function saveGameFile({
       console.log('file:', filename);
       console.log('code:', code);
 
-      await fsp.mkdir(dir, { recursive: true });
       const filePath = path.join(dir, filename);
+      // Ensure all parent directories exist for the file (handles subdirs in filename)
+      await fsp.mkdir(path.dirname(filePath), { recursive: true });
       await fsp.writeFile(filePath, code, 'utf8');
     }
   } catch (error) {
@@ -83,25 +85,33 @@ export async function deleteGame(address: string): Promise<void> {
 export async function publish({
   address,
   title,
+  id,
   reply
-}: PublishGameRequest): Promise<void> {
+}: PublishGameRequest): Promise<any> {
   try {
-    const id = uuidv4();
+    console.log('Incoming id:', id);
+    const gameId =
+      id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
+    console.log('Resolved gameId:', gameId);
+
     const srcDir = path.resolve(
       __dirname,
       `../../../public/currentGame/${address}`
     );
-    const destDir = path.resolve(__dirname, `../../../public/published/${id}`);
+    const destDir = path.resolve(
+      __dirname,
+      `../../../public/published/${gameId}`
+    );
     console.log('title:', title);
     if (!existsSync(srcDir)) {
       reply.status(404).send({ error: 'Game not found' });
       return;
     }
-    // Prevent overwriting if the title already exists
-    if (existsSync(destDir)) {
-      reply.status(409).send({ error: 'Title already exists' });
-      return;
-    }
+    // // Prevent overwriting if the title already exists
+    // if (existsSync(destDir)) {
+    //   reply.status(409).send({ error: 'Title already exists' });
+    //   return;
+    // }
 
     // Copy directory recursively
     await fsp.mkdir(destDir, { recursive: true });
@@ -127,7 +137,7 @@ export async function publish({
     }
 
     // Update published/games.json with new game info
-    const info = { author: address, title, id: id, date: new Date() };
+    const info = { author: address, title, id: gameId, date: new Date() };
     const publishedDir = path.resolve(__dirname, '../../../public/published');
     const gamesJsonPath = path.join(publishedDir, 'games.json');
     let games: any[] = [];
@@ -140,8 +150,25 @@ export async function publish({
         games = [];
       }
     }
-    games.push(info);
+    // Log all ids in games.json before checking
+    console.log(
+      'Existing ids in games.json:',
+      games.map((g) => g.id)
+    );
+    // Check if the id exists (robust: trim string for comparison)
+    const existingIndex = games.findIndex(
+      (g) => typeof g.id === 'string' && g.id.trim() === gameId
+    );
+    if (existingIndex !== -1) {
+      // Update the 'updated' field with the current timestamp
+      games[existingIndex].updated = new Date();
+      console.log('Updated existing entry with id:', gameId);
+    } else {
+      games.push(info);
+      console.log('Added new entry with id:', gameId);
+    }
     await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
+    return { id: gameId };
   } catch (error) {
     console.log('error publishing game:', error);
   }
