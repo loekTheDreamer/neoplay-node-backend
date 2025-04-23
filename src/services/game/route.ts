@@ -4,7 +4,8 @@ import {
   deleteGame,
   getPublishedGames,
   publish,
-  saveGameFile
+  saveGameFile,
+  serveCurrentGame
 } from './gameHelpers';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
@@ -43,13 +44,13 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       console.log('gameFiles:', gameFiles);
 
       if (!gameFiles || !Array.isArray(gameFiles) || gameFiles.length === 0) {
-        return reply.status(400).send({
+        return reply.code(400).send({
           error: 'Missing or invalid gameFiles array in request body'
         });
       }
 
       if (!address) {
-        return reply.status(400).send({
+        return reply.code(400).send({
           error: 'Missing or invalid address in request body'
         });
       }
@@ -57,9 +58,27 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       // Save each file
       await saveGameFile({ gameFiles, address, reply });
 
-      return reply.send({ success: true });
+      return reply.code(200).send({ success: true });
     } catch (err) {
-      return reply.status(500).send({ error: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
+    }
+  });
+
+  fastify.get('/serve-current', async (request, reply) => {
+    const body = request.body as DeleteGameRequest;
+
+    const { address } = body;
+    if (!address) {
+      return reply.code(400).send({
+        error: 'Missing or invalid address in request body'
+      });
+    }
+
+    try {
+      const url = await serveCurrentGame(address);
+      return reply.code(200).send({ url });
+    } catch (err) {
+      return reply.code(500).send({ error: (err as Error).message });
     }
   });
 
@@ -69,16 +88,16 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     const { address } = body;
 
     if (!address) {
-      return reply.status(400).send({
+      return reply.code(400).send({
         error: 'Missing or invalid address in request body'
       });
     }
 
     try {
       await deleteGame(address);
-      return reply.send({ success: true });
+      return reply.code(200).send({ success: true });
     } catch (err) {
-      return reply.status(500).send({ error: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
     }
   });
 
@@ -88,13 +107,13 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     const { address, title, id } = body;
 
     if (!address) {
-      return reply.status(400).send({
+      return reply.code(400).send({
         error: 'Missing or invalid address in request body'
       });
     }
 
     if (!title) {
-      return reply.status(400).send({
+      return reply.code(400).send({
         error: 'Missing or invalid title in request body'
       });
     }
@@ -104,7 +123,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       return reply.code(200).send(gameId);
       // return reply.send({ success: true });
     } catch (err) {
-      return reply.status(500).send({ error: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
     }
   });
 
@@ -116,7 +135,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       return reply.code(200).send(games);
     } catch (err) {
       console.log('error fetching published games:', err);
-      return reply.status(500).send({ error: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
     }
   });
 }

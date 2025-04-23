@@ -175,7 +175,7 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
   // );
 
   // SSE stream endpoint
-  fastify.get(
+  fastify.post(
     '/anthropic-stream',
     async (request: FastifyRequest, reply: FastifyReply) => {
       // Log session ID *immediately* upon receiving request

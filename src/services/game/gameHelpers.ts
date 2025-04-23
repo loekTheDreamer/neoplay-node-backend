@@ -1,27 +1,44 @@
 import * as path from 'path';
 import { promises as fsp, existsSync } from 'fs';
+import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GameFiles } from './route';
 import { FastifyReply } from 'fastify/types/reply';
 import { v4 as uuidv4 } from 'uuid';
-import AWS from 'aws-sdk';
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../../config/env';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const s3 = new AWS.S3({
+const s3 = new S3Client({
   endpoint: config.SEVALLA_ENDPOINT,
-  accessKeyId: config.SEVALLA_ACCESS_KEY_ID,
-  secretAccessKey: config.SEVALLA_SECRET_ACCESS_KEY,
-  s3ForcePathStyle: true,
-  signatureVersion: 's3v4'
+  region: 'auto', // 'auto' for S3-compatible services like R2
+  credentials: {
+    accessKeyId: config.SEVALLA_ACCESS_KEY_ID || '',
+    secretAccessKey: config.SEVALLA_SECRET_ACCESS_KEY || '',
+  },
+  forcePathStyle: true,
 });
 
-s3.listObjectsV2({ Bucket: 'scrawny-amber-wolverine-2g4re' }, (err, data) => {
-  if (err) console.log('Error:', err);
-  else console.log('Objects:', data.Contents);
-});
+// List objects for debugging (optional, can remove in production)
+(async () => {
+  try {
+    const data = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name',
+      })
+    );
+    if ('Contents' in data) {
+      console.log('Objects:', data.Contents);
+    } else {
+      console.log('No objects found or unexpected response:', data);
+    }
+  } catch (err) {
+    console.log('Error:', err);
+  }
+})();
 
 interface SaveGameFileRequest {
   gameFiles: GameFiles[];
@@ -48,38 +65,61 @@ export async function saveGameFile({
   reply
 }: SaveGameFileRequest): Promise<void> {
   try {
-    for (const fileObj of gameFiles) {
-      const { filename, code } = fileObj;
+    // Prepare upload promises for all files
+    const uploadPromises = gameFiles.map(async ({ filename, code }) => {
       if (
         !filename ||
         typeof filename !== 'string' ||
         !code ||
         typeof code !== 'string'
       ) {
-        return reply
-          .status(400)
-          .send({ error: 'Invalid file object in gameFiles' });
+        reply.code(400).send({ error: 'Invalid file object in gameFiles' });
+        return;
       }
-      console.log('go save it');
+      console.log('uploading...:', filename);
+      const command = new PutObjectCommand({
+        Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name',
+        Key: `current_game/${address}/${filename}`,
+        Body: code,
+      });
+      try {
+        await s3.send(command);
+        console.log('Upload Success:', filename);
+      } catch (err) {
+        console.log('Upload Error:', err);
+        throw err;
+      }
+    });
+    console.log('begin upload...');
+    await Promise.all(uploadPromises);
+    reply.send({ success: true });
 
-      console.log('here');
-      const dir = path.resolve(
-        __dirname,
-        `../../../public/currentGame/${address}`
-      );
+    // const dir = path.resolve(
+    //   __dirname,
+    //   `../../../public/currentGame/${address}`
+    // );
 
-      console.log('dir:', dir);
-      console.log('file:', filename);
-      console.log('code:', code);
+    // console.log('dir:', dir);
+    // console.log('file:', filename);
+    // console.log('code:', code);
 
-      const filePath = path.join(dir, filename);
-      // Ensure all parent directories exist for the file (handles subdirs in filename)
-      await fsp.mkdir(path.dirname(filePath), { recursive: true });
-      await fsp.writeFile(filePath, code, 'utf8');
-    }
+    // const filePath = path.join(dir, filename);
+    // // Ensure all parent directories exist for the file (handles subdirs in filename)
+    // await fsp.mkdir(path.dirname(filePath), { recursive: true });
+    // await fsp.writeFile(filePath, code, 'utf8');
   } catch (error) {
     console.log('error saving file:', error);
   }
+}
+
+export async function serveCurrentGame(address: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: config.SEVALLA_BUCKET_NAME,
+    Key: `current_game/${address}/index.html`,
+  });
+  const url = await getSignedUrl(s3, command, { expiresIn: 60 * 60 }); // 1 hour
+  console.log('url:', url);
+  return url;
 }
 
 export async function deleteGame(address: string): Promise<void> {

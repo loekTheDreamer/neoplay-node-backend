@@ -16,7 +16,8 @@ export const config = {
   ],
   SEVALLA_ENDPOINT: process.env.SEVALLA_ENDPOINT,
   SEVALLA_ACCESS_KEY_ID: process.env.SEVALLA_ACCESS_KEY_ID,
-  SEVALLA_SECRET_ACCESS_KEY: process.env.SEVALLA_SECRET_ACCESS_KEY
+  SEVALLA_SECRET_ACCESS_KEY: process.env.SEVALLA_SECRET_ACCESS_KEY,
+  SEVALLA_BUCKET_NAME: process.env.SEVALLA_BUCKET_NAME
 };
 
 if (
@@ -24,7 +25,8 @@ if (
   !config.xaiApiKey ||
   !config.SEVALLA_ENDPOINT ||
   !config.SEVALLA_ACCESS_KEY_ID ||
-  !config.SEVALLA_SECRET_ACCESS_KEY
+  !config.SEVALLA_SECRET_ACCESS_KEY ||
+  !config.SEVALLA_BUCKET_NAME
 ) {
   console.error('Missing API keys. Please set in the .env file.');
   process.exit(1);
