@@ -4,9 +4,24 @@ import { fileURLToPath } from 'url';
 import { GameFiles } from './route';
 import { FastifyReply } from 'fastify/types/reply';
 import { v4 as uuidv4 } from 'uuid';
+import AWS from 'aws-sdk';
+import { config } from '../../config/env';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const s3 = new AWS.S3({
+  endpoint: config.SEVALLA_ENDPOINT,
+  accessKeyId: config.SEVALLA_ACCESS_KEY_ID,
+  secretAccessKey: config.SEVALLA_SECRET_ACCESS_KEY,
+  s3ForcePathStyle: true,
+  signatureVersion: 's3v4'
+});
+
+s3.listObjectsV2({ Bucket: 'scrawny-amber-wolverine-2g4re' }, (err, data) => {
+  if (err) console.log('Error:', err);
+  else console.log('Objects:', data.Contents);
+});
 
 interface SaveGameFileRequest {
   gameFiles: GameFiles[];
