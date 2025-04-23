@@ -13,10 +13,19 @@ export const config = {
     'https://loekthedreamer.ngrok.app', // In case you use the primary one
     'https://loekthedreamer-secondary.ngrok.app' // Your current one
     // Add any other origins you need to support
-  ]
+  ],
+  SEVALLA_ENDPOINT: process.env.SEVALLA_ENDPOINT,
+  SEVALLA_ACCESS_KEY_ID: process.env.SEVALLA_ACCESS_KEY_ID,
+  SEVALLA_SECRET_ACCESS_KEY: process.env.SEVALLA_SECRET_ACCESS_KEY
 };
 
-if (!config.anthropicSecretKey || !config.xaiApiKey) {
+if (
+  !config.anthropicSecretKey ||
+  !config.xaiApiKey ||
+  !config.SEVALLA_ENDPOINT ||
+  !config.SEVALLA_ACCESS_KEY_ID ||
+  !config.SEVALLA_SECRET_ACCESS_KEY
+) {
   console.error('Missing API keys. Please set in the .env file.');
   process.exit(1);
 }
