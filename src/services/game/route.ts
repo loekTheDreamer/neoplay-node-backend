@@ -31,6 +31,10 @@ export type PublishGameRequest = {
   id?: string;
 };
 
+interface ServeCurrentGameRequest {
+  address: string;
+}
+
 export function registerGameRoutes(fastify: FastifyInstance) {
   fastify.post('/save', async (request, reply) => {
     console.log('registerGameRoutes...');
@@ -64,8 +68,8 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/serve-current', async (request, reply) => {
-    const body = request.body as DeleteGameRequest;
+  fastify.post('/serve-current', async (request, reply) => {
+    const body = request.body as ServeCurrentGameRequest;
 
     const { address } = body;
     if (!address) {
