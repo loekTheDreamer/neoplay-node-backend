@@ -5,7 +5,12 @@ import { fileURLToPath } from 'url';
 import { GameFiles } from './route';
 import { FastifyReply } from 'fastify/types/reply';
 import { v4 as uuidv4 } from 'uuid';
-import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../../config/env';
 
@@ -17,9 +22,9 @@ const s3 = new S3Client({
   region: 'auto', // 'auto' for S3-compatible services like R2
   credentials: {
     accessKeyId: config.SEVALLA_ACCESS_KEY_ID || '',
-    secretAccessKey: config.SEVALLA_SECRET_ACCESS_KEY || '',
+    secretAccessKey: config.SEVALLA_SECRET_ACCESS_KEY || ''
   },
-  forcePathStyle: true,
+  forcePathStyle: true
 });
 
 // List objects for debugging (optional, can remove in production)
@@ -27,7 +32,7 @@ const s3 = new S3Client({
   try {
     const data = await s3.send(
       new ListObjectsV2Command({
-        Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name',
+        Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name'
       })
     );
     if ('Contents' in data) {
@@ -53,6 +58,22 @@ interface PublishGameRequest {
   reply: FastifyReply;
 }
 
+const contentType = (filename: string) => {
+  if (filename.endsWith('.html')) {
+    return 'text/html';
+  }
+  if (filename.endsWith('.js')) {
+    return 'application/javascript';
+  }
+  if (filename.endsWith('.css')) {
+    return 'text/css';
+  }
+  if (filename.endsWith('.svg')) {
+    return 'image/svg+xml';
+  }
+  return 'application/octet-stream';
+};
+
 /**
  * Saves the provided code to a file in public/currentGame.
  * @param file - The filename to save as (e.g. 'main.js')
@@ -76,11 +97,12 @@ export async function saveGameFile({
         reply.code(400).send({ error: 'Invalid file object in gameFiles' });
         return;
       }
-      console.log('uploading...:', filename);
+
       const command = new PutObjectCommand({
         Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name',
         Key: `current_game/${address}/${filename}`,
         Body: code,
+        ContentType: contentType(filename)
       });
       try {
         await s3.send(command);
@@ -115,7 +137,7 @@ export async function saveGameFile({
 export async function serveCurrentGame(address: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: config.SEVALLA_BUCKET_NAME,
-    Key: `current_game/${address}/index.html`,
+    Key: `current_game/${address}/index.html`
   });
   const url = await getSignedUrl(s3, command, { expiresIn: 60 * 60 }); // 1 hour
   console.log('url:', url);
