@@ -4,8 +4,6 @@ package-lock.json
 yarn.lock
 
 # Environment variables
-.env
-.env.local
 .env.*.local
 
 # Logs
@@ -37,7 +35,6 @@ build/
 *.swp
 *.swo
 .DS_Store
-.env.test
 
 # Optional npm cache directory
 .npm
@@ -61,3 +58,4 @@ token.json
 public/currentGame
 public/published
 
+config.bat
