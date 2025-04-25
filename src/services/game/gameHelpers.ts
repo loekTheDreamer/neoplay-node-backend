@@ -75,47 +75,86 @@ const contentType = (filename: string) => {
   return 'application/octet-stream';
 };
 
-/**
- * Saves the provided code to a file in public/currentGame.
- * @param file - The filename to save as (e.g. 'main.js')
- * @param code - The code/content to write to the file
- * @throws Will throw if writing fails
- */
-export async function saveGameFile({
+// /**
+//  * Saves the provided code to a file in public/currentGame.
+//  * @param file - The filename to save as (e.g. 'main.js')
+//  * @param code - The code/content to write to the file
+//  * @throws Will throw if writing fails
+//  */
+// export async function saveGameFile({
+//   gameFiles,
+//   address,
+//   reply
+// }: SaveGameFileRequest): Promise<void> {
+//   try {
+//     // Prepare upload promises for all files
+//     const uploadPromises = gameFiles.map(async ({ filename, code }) => {
+//       if (
+//         !filename ||
+//         typeof filename !== 'string' ||
+//         !code ||
+//         typeof code !== 'string'
+//       ) {
+//         reply.code(400).send({ error: 'Invalid file object in gameFiles' });
+//         return;
+//       }
+
+//       const command = new PutObjectCommand({
+//         Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name',
+//         Key: `current_game/${address}/${filename}`,
+//         Body: code,
+//         ContentType: contentType(filename)
+//       });
+//       try {
+//         await s3.send(command);
+//         console.log('Upload Success:', filename);
+//       } catch (err) {
+//         console.log('Upload Error:', err);
+//         throw err;
+//       }
+//     });
+//     console.log('begin upload...');
+//     await Promise.all(uploadPromises);
+//     reply.code(200).send({ success: true });
+//   } catch (error) {
+//     console.log('error saving file:', error);
+//   }
+// }
+
+export async function saveCurrentGame({
   gameFiles,
   address,
   reply
 }: SaveGameFileRequest): Promise<void> {
   try {
-    // Prepare upload promises for all files
-    const uploadPromises = gameFiles.map(async ({ filename, code }) => {
+    for (const fileObj of gameFiles) {
+      const { filename, code } = fileObj;
       if (
         !filename ||
         typeof filename !== 'string' ||
         !code ||
         typeof code !== 'string'
       ) {
-        reply.code(400).send({ error: 'Invalid file object in gameFiles' });
-        return;
+        return reply
+          .status(400)
+          .send({ error: 'Invalid file object in gameFiles' });
       }
+      console.log('go save it');
 
-      const command = new PutObjectCommand({
-        Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name',
-        Key: `current_game/${address}/${filename}`,
-        Body: code,
-        ContentType: contentType(filename)
-      });
-      try {
-        await s3.send(command);
-        console.log('Upload Success:', filename);
-      } catch (err) {
-        console.log('Upload Error:', err);
-        throw err;
-      }
-    });
-    console.log('begin upload...');
-    await Promise.all(uploadPromises);
-    reply.code(200).send({ success: true });
+      console.log('here');
+      const dir = path.resolve(
+        __dirname,
+        `../../../public/currentGame/${address}`
+      );
+
+      console.log('dir:', dir);
+      console.log('file:', filename);
+      console.log('code:', code);
+
+      await fsp.mkdir(dir, { recursive: true });
+      const filePath = path.join(dir, filename);
+      await fsp.writeFile(filePath, code, 'utf8');
+    }
   } catch (error) {
     console.log('error saving file:', error);
   }

@@ -4,7 +4,8 @@ import {
   deleteGame,
   getPublishedGames,
   publish,
-  saveGameFile,
+  saveCurrentGame,
+  // saveGameFile,
   serveCurrentGame
 } from './gameHelpers';
 import { promises as fsp } from 'fs';
@@ -60,7 +61,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       }
 
       // Save each file
-      await saveGameFile({ gameFiles, address, reply });
+      await saveCurrentGame({ gameFiles, address, reply });
 
       return reply.code(200).send({ success: true });
     } catch (err) {
