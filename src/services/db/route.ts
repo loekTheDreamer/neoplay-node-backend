@@ -10,8 +10,6 @@ interface User {
   address: string;
 }
 
-console.log(prisma);
-
 export function registerDbRoutes(fastify: FastifyInstance) {
   fastify.post('/doris-login', async (request, reply) => {
     console.log('hit');
@@ -34,12 +32,12 @@ export function registerDbRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post('/doris-find', async (request, reply) => {
-    try {
-      const users = await prisma.user.findMany();
-      reply.code(200).send(users);
-    } catch (error) {
-      reply.code(500).send({ error: 'Failed to find users' });
-    }
-  });
+  // fastify.post('/doris-find', async (request, reply) => {
+  //   try {
+  //     const users = await prisma.user.findMany();
+  //     reply.code(200).send(users);
+  //   } catch (error) {
+  //     reply.code(500).send({ error: 'Failed to find users' });
+  //   }
+  // });
 }
