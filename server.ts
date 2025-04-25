@@ -15,11 +15,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { registerXaiRoutes } from './src/services/xai/routes.ts';
+import { registerDbRoutes } from './src/services/db/route.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const fastify = Fastify({ logger: true });
+// const fastify = Fastify({ logger: true });
+const fastify = Fastify({ logger: { level: 'warn' } });
 
 // Register cookie plugin first
 fastify.register(fastifyCookie);
@@ -72,6 +74,7 @@ fastify.register(fastifyFormBody);
 fastify.register(fastifyWs);
 
 // Register routes
+registerDbRoutes(fastify);
 registerAnthropicRoutes(fastify);
 registerGameRoutes(fastify);
 registerXaiRoutes(fastify);
