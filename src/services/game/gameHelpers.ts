@@ -9,7 +9,8 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
-  ListObjectsV2Command
+  ListObjectsV2Command,
+  CopyObjectCommand
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../../config/env';
@@ -114,21 +115,7 @@ export async function saveGameFile({
     });
     console.log('begin upload...');
     await Promise.all(uploadPromises);
-    reply.send({ success: true });
-
-    // const dir = path.resolve(
-    //   __dirname,
-    //   `../../../public/currentGame/${address}`
-    // );
-
-    // console.log('dir:', dir);
-    // console.log('file:', filename);
-    // console.log('code:', code);
-
-    // const filePath = path.join(dir, filename);
-    // // Ensure all parent directories exist for the file (handles subdirs in filename)
-    // await fsp.mkdir(path.dirname(filePath), { recursive: true });
-    // await fsp.writeFile(filePath, code, 'utf8');
+    reply.code(200).send({ success: true });
   } catch (error) {
     console.log('error saving file:', error);
   }
@@ -137,7 +124,7 @@ export async function saveGameFile({
 export async function serveCurrentGame(address: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: config.SEVALLA_BUCKET_NAME,
-    Key: `current_game/${address}/index.html`
+    Key: `current_game/${address}`
   });
   const url = await getSignedUrl(s3, command, { expiresIn: 60 * 60 }); // 1 hour
   console.log('url:', url);
@@ -167,56 +154,44 @@ export async function publish({
 }: PublishGameRequest): Promise<any> {
   try {
     console.log('Incoming id:', id);
-    const gameId =
-      id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
+    const gameId = id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
     console.log('Resolved gameId:', gameId);
+    const bucket = config.SEVALLA_BUCKET_NAME || 'your-bucket-name';
+    const srcPrefix = `current_game/${address}/`;
+    const destPrefix = `published/${gameId}/`;
 
-    const srcDir = path.resolve(
-      __dirname,
-      `../../../public/currentGame/${address}`
-    );
-    const destDir = path.resolve(
-      __dirname,
-      `../../../public/published/${gameId}`
-    );
-    console.log('title:', title);
-    if (!existsSync(srcDir)) {
-      reply.status(404).send({ error: 'Game not found' });
+    // 1. List all files under current_game/{address}/
+    const listResp = await s3.send(new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: srcPrefix
+    }));
+    if (!listResp.Contents || listResp.Contents.length === 0) {
+      reply.code(404).send({ error: 'No files found for this game' });
       return;
     }
-    // // Prevent overwriting if the title already exists
-    // if (existsSync(destDir)) {
-    //   reply.status(409).send({ error: 'Title already exists' });
-    //   return;
-    // }
 
-    // Copy directory recursively
-    await fsp.mkdir(destDir, { recursive: true });
-    // Node.js 16+ has fsp.cp, fallback if not available
-    if (typeof fsp.cp === 'function') {
-      await (fsp as any).cp(srcDir, destDir, { recursive: true });
-    } else {
-      // Fallback: copy files manually (simple implementation)
-      const copyRecursive = async (src: string, dest: string) => {
-        const entries = await fsp.readdir(src, { withFileTypes: true });
-        for (const entry of entries) {
-          const srcPath = path.join(src, entry.name);
-          const destPath = path.join(dest, entry.name);
-          if (entry.isDirectory()) {
-            await fsp.mkdir(destPath, { recursive: true });
-            await copyRecursive(srcPath, destPath);
-          } else {
-            await fsp.copyFile(srcPath, destPath);
-          }
-        }
-      };
-      await copyRecursive(srcDir, destDir);
-    }
+    // 2. Copy each file to published/{gameId}/
+    const copyPromises = listResp.Contents.filter(obj => !!obj.Key && !obj.Key.endsWith('/')).map(async obj => {
+      const srcKey = obj.Key!;
+      const relativeKey = srcKey.substring(srcPrefix.length);
+      const destKey = destPrefix + relativeKey;
+      try {
+        await s3.send(new CopyObjectCommand({
+          Bucket: bucket,
+          CopySource: `${bucket}/${srcKey}`,
+          Key: destKey
+        }));
+        console.log(`Copied ${srcKey} to ${destKey}`);
+      } catch (err) {
+        console.log('Copy error:', err);
+        throw err;
+      }
+    });
+    await Promise.all(copyPromises);
 
-    // Update published/games.json with new game info
-    const info = { author: address, title, id: gameId, date: new Date() };
-    const publishedDir = path.resolve(__dirname, '../../../public/published');
-    const gamesJsonPath = path.join(publishedDir, 'games.json');
+    // 3. Update public/games.json on disk (not S3)
+    const publicDir = path.resolve(__dirname, '../../../public');
+    const gamesJsonPath = path.join(publicDir, 'games.json');
     let games: any[] = [];
     if (existsSync(gamesJsonPath)) {
       const data = await fsp.readFile(gamesJsonPath, 'utf-8');
@@ -227,17 +202,11 @@ export async function publish({
         games = [];
       }
     }
-    // Log all ids in games.json before checking
-    console.log(
-      'Existing ids in games.json:',
-      games.map((g) => g.id)
-    );
-    // Check if the id exists (robust: trim string for comparison)
+    const info = { author: address, title, id: gameId, date: new Date() };
     const existingIndex = games.findIndex(
-      (g) => typeof g.id === 'string' && g.id.trim() === gameId
+      (g: any) => typeof g.id === 'string' && g.id.trim() === gameId
     );
     if (existingIndex !== -1) {
-      // Update the 'updated' field with the current timestamp
       games[existingIndex].updated = new Date();
       console.log('Updated existing entry with id:', gameId);
     } else {
@@ -245,11 +214,107 @@ export async function publish({
       console.log('Added new entry with id:', gameId);
     }
     await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
+
     return { id: gameId };
+
   } catch (error) {
     console.log('error publishing game:', error);
+    reply.code(500).send({ error: 'Error publishing game', details: error });
   }
 }
+
+
+// export async function publish({
+//   address,
+//   title,
+//   id,
+//   reply
+// }: PublishGameRequest): Promise<any> {
+//   try {
+//     console.log('Incoming id:', id);
+//     const gameId =
+//       id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
+//     console.log('Resolved gameId:', gameId);
+
+//     const srcDir = path.resolve(
+//       __dirname,
+//       `../../../public/currentGame/${address}`
+//     );
+//     const destDir = path.resolve(
+//       __dirname,
+//       `../../../public/published/${gameId}`
+//     );
+//     console.log('title:', title);
+//     if (!existsSync(srcDir)) {
+//       reply.status(404).send({ error: 'Game not found' });
+//       return;
+//     }
+//     // // Prevent overwriting if the title already exists
+//     // if (existsSync(destDir)) {
+//     //   reply.status(409).send({ error: 'Title already exists' });
+//     //   return;
+//     // }
+
+//     // Copy directory recursively
+//     await fsp.mkdir(destDir, { recursive: true });
+//     // Node.js 16+ has fsp.cp, fallback if not available
+//     if (typeof fsp.cp === 'function') {
+//       await (fsp as any).cp(srcDir, destDir, { recursive: true });
+//     } else {
+//       // Fallback: copy files manually (simple implementation)
+//       const copyRecursive = async (src: string, dest: string) => {
+//         const entries = await fsp.readdir(src, { withFileTypes: true });
+//         for (const entry of entries) {
+//           const srcPath = path.join(src, entry.name);
+//           const destPath = path.join(dest, entry.name);
+//           if (entry.isDirectory()) {
+//             await fsp.mkdir(destPath, { recursive: true });
+//             await copyRecursive(srcPath, destPath);
+//           } else {
+//             await fsp.copyFile(srcPath, destPath);
+//           }
+//         }
+//       };
+//       await copyRecursive(srcDir, destDir);
+//     }
+
+//     // Update published/games.json with new game info
+//     const info = { author: address, title, id: gameId, date: new Date() };
+//     const publishedDir = path.resolve(__dirname, '../../../public/published');
+//     const gamesJsonPath = path.join(publishedDir, 'games.json');
+//     let games: any[] = [];
+//     if (existsSync(gamesJsonPath)) {
+//       const data = await fsp.readFile(gamesJsonPath, 'utf-8');
+//       try {
+//         games = JSON.parse(data);
+//         if (!Array.isArray(games)) games = [];
+//       } catch {
+//         games = [];
+//       }
+//     }
+//     // Log all ids in games.json before checking
+//     console.log(
+//       'Existing ids in games.json:',
+//       games.map((g) => g.id)
+//     );
+//     // Check if the id exists (robust: trim string for comparison)
+//     const existingIndex = games.findIndex(
+//       (g) => typeof g.id === 'string' && g.id.trim() === gameId
+//     );
+//     if (existingIndex !== -1) {
+//       // Update the 'updated' field with the current timestamp
+//       games[existingIndex].updated = new Date();
+//       console.log('Updated existing entry with id:', gameId);
+//     } else {
+//       games.push(info);
+//       console.log('Added new entry with id:', gameId);
+//     }
+//     await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
+//     return { id: gameId };
+//   } catch (error) {
+//     console.log('error publishing game:', error);
+//   }
+// }
 
 export async function getPublishedGames() {
   try {
