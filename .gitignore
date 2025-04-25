@@ -61,3 +61,7 @@ token.json
 public/currentGame
 public/published
 
+
+#prisma
+/prisma/dev.db
+/prisma/.DS_Store
