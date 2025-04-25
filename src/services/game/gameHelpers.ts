@@ -29,22 +29,22 @@ const s3 = new S3Client({
 });
 
 // List objects for debugging (optional, can remove in production)
-(async () => {
-  try {
-    const data = await s3.send(
-      new ListObjectsV2Command({
-        Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name'
-      })
-    );
-    if ('Contents' in data) {
-      console.log('Objects:', data.Contents);
-    } else {
-      console.log('No objects found or unexpected response:', data);
-    }
-  } catch (err) {
-    console.log('Error:', err);
-  }
-})();
+// (async () => {
+//   try {
+//     const data = await s3.send(
+//       new ListObjectsV2Command({
+//         Bucket: config.SEVALLA_BUCKET_NAME || 'your-bucket-name'
+//       })
+//     );
+//     if ('Contents' in data) {
+//       console.log('Objects:', data.Contents);
+//     } else {
+//       console.log('No objects found or unexpected response:', data);
+//     }
+//   } catch (err) {
+//     console.log('Error:', err);
+//   }
+// })();
 
 interface SaveGameFileRequest {
   gameFiles: GameFiles[];
@@ -154,33 +154,40 @@ export async function publish({
 }: PublishGameRequest): Promise<any> {
   try {
     console.log('Incoming id:', id);
-    const gameId = id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
+    const gameId =
+      id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
     console.log('Resolved gameId:', gameId);
     const bucket = config.SEVALLA_BUCKET_NAME || 'your-bucket-name';
     const srcPrefix = `current_game/${address}/`;
     const destPrefix = `published/${gameId}/`;
 
     // 1. List all files under current_game/{address}/
-    const listResp = await s3.send(new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: srcPrefix
-    }));
+    const listResp = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: srcPrefix
+      })
+    );
     if (!listResp.Contents || listResp.Contents.length === 0) {
       reply.code(404).send({ error: 'No files found for this game' });
       return;
     }
 
     // 2. Copy each file to published/{gameId}/
-    const copyPromises = listResp.Contents.filter(obj => !!obj.Key && !obj.Key.endsWith('/')).map(async obj => {
+    const copyPromises = listResp.Contents.filter(
+      (obj) => !!obj.Key && !obj.Key.endsWith('/')
+    ).map(async (obj) => {
       const srcKey = obj.Key!;
       const relativeKey = srcKey.substring(srcPrefix.length);
       const destKey = destPrefix + relativeKey;
       try {
-        await s3.send(new CopyObjectCommand({
-          Bucket: bucket,
-          CopySource: `${bucket}/${srcKey}`,
-          Key: destKey
-        }));
+        await s3.send(
+          new CopyObjectCommand({
+            Bucket: bucket,
+            CopySource: `${bucket}/${srcKey}`,
+            Key: destKey
+          })
+        );
         console.log(`Copied ${srcKey} to ${destKey}`);
       } catch (err) {
         console.log('Copy error:', err);
@@ -216,13 +223,11 @@ export async function publish({
     await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
 
     return { id: gameId };
-
   } catch (error) {
     console.log('error publishing game:', error);
     reply.code(500).send({ error: 'Error publishing game', details: error });
   }
 }
-
 
 // export async function publish({
 //   address,
