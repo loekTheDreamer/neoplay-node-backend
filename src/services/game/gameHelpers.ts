@@ -197,39 +197,43 @@ export async function publish({
       id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
     console.log('Resolved gameId:', gameId);
     const bucket = config.SEVALLA_BUCKET_NAME || 'your-bucket-name';
-    const srcPrefix = `current_game/${address}/`;
+    const srcDir = path.resolve(
+      __dirname,
+      `../../../public/currentGame/${address}`
+    );
     const destPrefix = `published/${gameId}/`;
 
-    // 1. List all files under current_game/{address}/
-    const listResp = await s3.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: srcPrefix
-      })
-    );
-    if (!listResp.Contents || listResp.Contents.length === 0) {
+    // 1. List all files under public/currentGames/{address}/
+    let files: string[] = [];
+    console.log('here:', files);
+    try {
+      files = await fsp.readdir(srcDir);
+      console.log('files:', files);
+    } catch (err) {
       reply.code(404).send({ error: 'No files found for this game' });
       return;
     }
-
-    // 2. Copy each file to published/{gameId}/
-    const copyPromises = listResp.Contents.filter(
-      (obj) => !!obj.Key && !obj.Key.endsWith('/')
-    ).map(async (obj) => {
-      const srcKey = obj.Key!;
-      const relativeKey = srcKey.substring(srcPrefix.length);
-      const destKey = destPrefix + relativeKey;
+    if (!files || files.length === 0) {
+      reply.code(404).send({ error: 'No files found for this game' });
+      return;
+    }
+    console.log('fuck you');
+    // 2. Upload each file to published/{gameId}/ in S3
+    const copyPromises = files.map(async (file) => {
+      const filePath = path.join(srcDir, file);
+      const destKey = destPrefix + file;
       try {
+        const fileContent = await fsp.readFile(filePath);
         await s3.send(
-          new CopyObjectCommand({
+          new PutObjectCommand({
             Bucket: bucket,
-            CopySource: `${bucket}/${srcKey}`,
-            Key: destKey
+            Key: destKey,
+            Body: fileContent
           })
         );
-        console.log(`Copied ${srcKey} to ${destKey}`);
+        console.log(`Uploaded ${filePath} to ${destKey}`);
       } catch (err) {
-        console.log('Copy error:', err);
+        console.log('Upload error:', err);
         throw err;
       }
     });
@@ -263,8 +267,14 @@ export async function publish({
 
     return { id: gameId };
   } catch (error) {
-    console.log('error publishing game:', error);
-    reply.code(500).send({ error: 'Error publishing game', details: error });
+    console.error('Error publishing game:', error);
+    if (error instanceof Error) {
+      console.error('Stack trace:', error.stack);
+    }
+    reply.code(500).send({
+      error: 'Error publishing game',
+      details: error instanceof Error ? error.message : error
+    });
   }
 }
 
