@@ -142,18 +142,21 @@ export async function saveCurrentGame({
       console.log('go save it');
 
       console.log('here');
-      const dir = path.resolve(
+      // Compute the full file path for this file (including any nested directories in filename)
+      const baseDir = path.resolve(
         __dirname,
         `../../../public/currentGame/${address}`
       );
+      const filePath = path.join(baseDir, filename);
+      const fileDir = path.dirname(filePath);
 
-      console.log('dir:', dir);
-      console.log('file:', filename);
-      console.log('code:', code);
+      // Ensure the directory exists (recursive for dynamic/nested dirs)
+      await fsp.mkdir(fileDir, { recursive: true });
 
-      await fsp.mkdir(dir, { recursive: true });
-      const filePath = path.join(dir, filename);
+      // Save the file
       await fsp.writeFile(filePath, code, 'utf8');
+
+      console.log('Saved file to:', filePath);
     }
   } catch (error) {
     console.log('error saving file:', error);

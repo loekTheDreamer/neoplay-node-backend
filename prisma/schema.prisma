@@ -13,8 +13,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            Int     @id @default(autoincrement())
-  walletAddress String  @unique
-  createdAt     DateTime @default(now())
+enum Role {
+  system
+  assistant
+  user
 }
+
+enum GameStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id            String  @id @default(uuid())
+  walletAddress String  @unique
+  nonce         String?
+  createdAt     DateTime @default(now())
+  games         Game[]
+  likes         Like[]
+  sentMessages  Message[] @relation("UserSentMessages")
+  threads       Thread[]
+}
+
+model Like {
+  id      String   @id @default(uuid())
+  user    User     @relation(fields: [userId], references: [id])
+  userId  String
+  game    Game     @relation(fields: [gameId], references: [id])
+  gameId  String
+  createdAt DateTime @default(now())
+  @@unique([userId, gameId]) 
+}
+
+model Game {
+  id            String  @id @default(uuid())
+  name          String
+  genre         String
+  description   String
+  coverImageUrl String
+  plays         Int    @default(0)
+  tags          String[]
+  publisher     User   @relation(fields: [publisherId], references: [id])
+  publisherId   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  likedBy       Like[]
+  threads       Thread[]
+  status        GameStatus @default(DRAFT)
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  threadId  String
+  sender    User?     @relation("UserSentMessages", fields: [senderId], references: [id])
+  senderId  String?
+  role      Role
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Thread {
+  id        String   @id @default(uuid())
+  game      Game     @relation(fields: [gameId], references: [id])
+  gameId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  Message[]
+}
+
