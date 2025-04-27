@@ -31,7 +31,6 @@ Your task is to create this web app in multiple files. Follow these instructions
 2. Code Quality and Organization:
    - Create small, focused components (< 50 lines)
    - Follow established project structure
-   - Write extensive console logs for debugging
 
 3. Component Creation:
    - Create new files for each component
@@ -55,9 +54,11 @@ Your task is to create this web app in multiple files. Follow these instructions
    - Add JavaScript to display error messages
    - Implement proper error boundaries
    - Log errors for debugging
+   - Handle all exceptions
    - Provide user-friendly error messages:
       a. showGameMessage("This is an error!", "error");
       b. add onerror="console.log('error message')" to the <script> tag
+
 
 5. Performance:
    - Implement code splitting where needed
