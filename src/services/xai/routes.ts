@@ -1,9 +1,11 @@
 import OpenAI from 'openai';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
+import { initialPrompt } from '../../prompts/xaiPrompts';
 
 // Inline type for OpenAI ChatCompletionMessageParam
 // (role: 'system' | 'user' | 'assistant', content: string)
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 type OpenAIChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -22,11 +24,11 @@ interface ChatRequest {
   systemPrompt?: string;
 }
 
-// let model = 'grok-3-beta';
+let model = 'grok-3-beta';
 
 // let model = 'grok-3-latest';
 
-let model = 'grok-3-mini-beta';
+// let model = 'grok-3-mini-beta';
 
 console.log('USING MODEL:', model);
 let tokenCount = 0;
@@ -83,7 +85,13 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       );
       const { chatHistory } = context;
 
-      console.log('chatHistory:', chatHistory);
+      // Prepend initialPrompt as a system message before chatHistory
+      const messages: ChatCompletionMessageParam[] = [
+        { role: 'system', content: initialPrompt },
+        ...(Array.isArray(chatHistory) ? chatHistory : [])
+      ];
+
+      console.log('messages (with initialPrompt):', messages);
       console.log(
         'Headers prepared by Fastify before manual writeHead:',
         reply.getHeaders()
@@ -105,7 +113,7 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
 
             const stream = await openai.chat.completions.create({
               model: model, // e.g., 'grok-3-mini-beta'
-              messages: chatHistory,
+              messages: messages,
               // max_tokens: tokenCount,
               stream: true
             });

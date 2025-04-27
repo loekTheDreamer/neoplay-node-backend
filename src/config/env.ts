@@ -8,6 +8,7 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET,
   xaiApiKey: process.env.XAI_API_KEY,
   cors: [
+    'http://localhost:8080',
     'http://localhost:5173',
     'https://paperclip-liart.vercel.app',
     'https://loekthedreamer.ngrok.app', // In case you use the primary one
