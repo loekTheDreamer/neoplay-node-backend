@@ -119,12 +119,14 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
             });
 
             let eventCounter = 0;
+            let fullOutput = '';
             for await (const chunk of stream) {
               eventCounter++;
               const sseId = `${request.session.sessionId}-${eventCounter}`;
               // Only send the content field, if present
               const content = chunk.choices?.[0]?.delta?.content;
               if (content) {
+                fullOutput += content;
                 yield {
                   id: sseId,
                   event: 'message',
@@ -132,6 +134,8 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
                 };
               }
             }
+            // After stream ends, print/log the full output
+            console.log('Final OpenAI output for session', request.session.sessionId, ':', fullOutput);
             // After stream ends, yield explicit done event
             yield {
               id: `${request.session.sessionId}-done`,
