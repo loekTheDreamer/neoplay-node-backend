@@ -38,7 +38,7 @@ interface ServeCurrentGameRequest {
 
 export function registerGameRoutes(fastify: FastifyInstance) {
   fastify.post(
-    '/save',
+    '/game/save',
     {
       preHandler: [authMiddleware]
     },
