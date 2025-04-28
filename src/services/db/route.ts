@@ -1,9 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { config } from '../../config/env';
+import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaClient } from '@prisma/client';
 import { verifyMessage } from 'ethers';
+import { signJwt, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
+import { authMiddleware } from '../../middleware/auth';
 
 const prisma = new PrismaClient();
 
@@ -66,30 +66,54 @@ export function registerDbRoutes(fastify: FastifyInstance) {
       });
       console.log('clear nonce');
 
-      reply.code(200).send({ message: 'Authenticated', id: user.id });
+      // Issue JWTs
+      const token = signJwt({ id: user.id, address });
+      // const refreshToken = signRefreshToken({ id: user.id, address });
+
+      // // Set refresh token as httpOnly cookie
+      // reply.setCookie('refreshToken', refreshToken, {
+      //   httpOnly: true,
+      //   path: '/',
+      //   sameSite: 'lax',
+      //   secure: process.env.NODE_ENV === 'production',
+      //   maxAge: 30 * 24 * 60 * 60 // 30 days
+      // });
+
+      reply
+        .code(200)
+        .send({ message: 'Authenticated', token, address: recoveredAddress });
     } catch (error) {
       reply.code(500).send({ error: 'Failed to authenticate user' });
     }
   });
-  fastify.post('/game', async (request, reply) => {
-    const { userId } = request.body as { userId: string };
-    try {
-      const game = await prisma.game.create({
-        data: {
-          name: 'Untitled Game',
-          genre: 'Unknown',
-          description: '',
-          coverImageUrl: '',
-          publisherId: userId,
-          tags: []
-          // status will default to DRAFT
-        }
-      });
-      reply.code(201).send(game);
-    } catch (error) {
-      reply.code(500).send({ error: 'Failed to create game' });
+
+  fastify.post(
+    '/game',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      // publisherId comes from the JWT payload
+      const user = (request as any).user;
+      if (!user || !user.id) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+      try {
+        const game = await prisma.game.create({
+          data: {
+            name: 'Untitled Game',
+            genre: 'Unknown',
+            description: '',
+            coverImageUrl: '',
+            publisherId: user.id,
+            tags: []
+            // status will default to DRAFT
+          }
+        });
+        reply.code(201).send(game);
+      } catch (error) {
+        reply.code(500).send({ error: 'Failed to create game' });
+      }
     }
-  });
+  );
 
   // fastify.post('/doris-find', async (request, reply) => {
   //   try {
@@ -99,4 +123,23 @@ export function registerDbRoutes(fastify: FastifyInstance) {
   //     reply.code(500).send({ error: 'Failed to find users' });
   //   }
   // });
+
+  // Endpoint to refresh access token
+  fastify.post('/auth/refresh', async (request, reply) => {
+    const { refreshToken } = request.cookies || {};
+    if (!refreshToken) {
+      return reply.code(401).send({ error: 'No refresh token provided' });
+    }
+    const payload = verifyRefreshToken(refreshToken);
+    if (!payload) {
+      return reply
+        .code(401)
+        .send({ error: 'Invalid or expired refresh token' });
+    }
+    const newAccessToken = signJwt({
+      id: payload.id,
+      address: payload.address
+    });
+    reply.code(200).send({ token: newAccessToken });
+  });
 }

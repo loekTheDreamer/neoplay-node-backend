@@ -5,7 +5,7 @@ import { initialPrompt } from '../../prompts/xaiPrompts';
 
 // Inline type for OpenAI ChatCompletionMessageParam
 // (role: 'system' | 'user' | 'assistant', content: string)
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 type OpenAIChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -24,11 +24,11 @@ interface ChatRequest {
   systemPrompt?: string;
 }
 
-let model = 'grok-3-beta';
+// let model = 'grok-3-beta';
 
 // let model = 'grok-3-latest';
 
-// let model = 'grok-3-mini-beta';
+let model = 'grok-3-mini-beta';
 
 console.log('USING MODEL:', model);
 let tokenCount = 0;
