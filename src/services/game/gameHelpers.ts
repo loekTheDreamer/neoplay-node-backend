@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { config } from '../../config/env';
 import prisma from '../db/prisma';
+import { ChatCompletionMessageParam } from 'openai/resources.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -237,3 +238,39 @@ export async function getPublishedGames() {
     console.log('error fetching published games:', err);
   }
 }
+
+export const getThreadMessages = async (threadId: string) => {
+  try {
+    const messages = await prisma.message.findMany({
+      where: { threadId },
+      orderBy: { createdAt: 'asc' }
+    });
+    return messages;
+  } catch (error) {
+    console.error('Error fetching thread messages:', error);
+    throw error;
+  }
+};
+
+interface MessageParam {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export const addThreadMessage = async (
+  threadId: string,
+  message: MessageParam
+) => {
+  try {
+    await prisma.message.create({
+      data: {
+        threadId,
+        content: message.content,
+        role: message.role
+      }
+    });
+  } catch (error) {
+    console.error('Error adding thread message:', error);
+    throw error;
+  }
+};

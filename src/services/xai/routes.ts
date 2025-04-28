@@ -6,6 +6,8 @@ import { initialPrompt } from '../../prompts/xaiPrompts';
 // Inline type for OpenAI ChatCompletionMessageParam
 // (role: 'system' | 'user' | 'assistant', content: string)
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { authMiddleware } from '../../middleware/auth';
+import { addThreadMessage, getThreadMessages } from '../game/gameHelpers';
 type OpenAIChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -22,6 +24,7 @@ interface ChatRequest {
     content: string;
   }>;
   systemPrompt?: string;
+  threadId: string;
 }
 
 let model = 'grok-3-beta';
@@ -40,23 +43,39 @@ if (model === 'grok-3-mini-beta') {
 }
 
 export function registerXaiRoutes(fastify: FastifyInstance) {
-  fastify.post('/setup-xai-stream', async (request, reply) => {
-    const { chatHistory, systemPrompt } = request.body as ChatRequest;
-    request.session.streamContext = { chatHistory, systemPrompt };
+  fastify.post(
+    '/setup-xai-stream',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const user = (request as any).user;
+      console.log('user:', user);
+      if (!user || !user.id) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+      const { chatHistory, systemPrompt, threadId } =
+        request.body as ChatRequest;
+      request.session.streamContext = { chatHistory, systemPrompt, threadId };
 
-    // Force session to be saved and cookie to be set
-    await request.session.save();
+      // Force session to be saved and cookie to be set
+      await request.session.save();
 
-    // Log headers after setting the response
-    reply.code(200).send({ success: true, message: 'Chat context ready' });
+      // Log headers after setting the response
+      reply.code(200).send({ success: true, message: 'Chat context ready' });
 
-    return reply; // Ensure reply is returned
-  });
+      return reply; // Ensure reply is returned
+    }
+  );
 
   // SSE stream endpoint
   fastify.get(
     '/xai-stream',
+    // { preHandler: authMiddleware },
     async (request: FastifyRequest, reply: FastifyReply) => {
+      // const user = (request as any).user;
+      // console.log('user:', user);
+      // if (!user || !user.id) {
+      //   return reply.code(401).send({ error: 'Unauthorized' });
+      // }
       // --- Retrieve the context from session ---
       const context = request.session.streamContext;
 
@@ -83,7 +102,9 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       console.log(
         `Retrieved context from session ${request.session.sessionId}, context cleared from session.`
       );
-      const { chatHistory } = context;
+      const { chatHistory, threadId } = context;
+
+      await addThreadMessage(threadId, chatHistory[chatHistory.length - 1]);
 
       // Prepend initialPrompt as a system message before chatHistory
       const messages: ChatCompletionMessageParam[] = [
@@ -91,26 +112,9 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
         ...(Array.isArray(chatHistory) ? chatHistory : [])
       ];
 
-      console.log('messages (with initialPrompt):', messages);
-      console.log(
-        'Headers prepared by Fastify before manual writeHead:',
-        reply.getHeaders()
-      );
       reply.sse(
         (async function* () {
           try {
-            // Prepare messages array for OpenAI format
-            // const messages: OpenAIChatMessage[] = [];
-
-            // if (Array.isArray(chatHistory)) {
-            //   for (const msg of chatHistory) {
-            //     // Only allow roles 'user' or 'assistant', and enforce type
-            //     if (msg.role === 'user' || msg.role === 'assistant') {
-            //       messages.push({ role: msg.role, content: msg.content });
-            //     }
-            //   }
-            // }
-
             const stream = await openai.chat.completions.create({
               model: model, // e.g., 'grok-3-mini-beta'
               messages: messages,
@@ -135,7 +139,18 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
               }
             }
             // After stream ends, print/log the full output
-            console.log('Final OpenAI output for session', request.session.sessionId, ':', fullOutput);
+            console.log(
+              'Final OpenAI output for session',
+              request.session.sessionId,
+              ':',
+              fullOutput
+            );
+
+            await addThreadMessage(threadId, {
+              role: 'assistant',
+              content: fullOutput
+            });
+
             // After stream ends, yield explicit done event
             yield {
               id: `${request.session.sessionId}-done`,
