@@ -4,8 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { verifyMessage } from 'ethers';
 import { signJwt, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
 import { authMiddleware } from '../../middleware/auth';
-
-const prisma = new PrismaClient();
+import prisma from './prisma'; // adjust the path as needed
 
 interface User {
   address: string;
@@ -86,34 +85,6 @@ export function registerDbRoutes(fastify: FastifyInstance) {
       reply.code(500).send({ error: 'Failed to authenticate user' });
     }
   });
-
-  fastify.post(
-    '/game',
-    { preHandler: authMiddleware },
-    async (request, reply) => {
-      // publisherId comes from the JWT payload
-      const user = (request as any).user;
-      if (!user || !user.id) {
-        return reply.code(401).send({ error: 'Unauthorized' });
-      }
-      try {
-        const game = await prisma.game.create({
-          data: {
-            name: 'Untitled Game',
-            genre: 'Unknown',
-            description: '',
-            coverImageUrl: '',
-            publisherId: user.id,
-            tags: []
-            // status will default to DRAFT
-          }
-        });
-        reply.code(201).send(game);
-      } catch (error) {
-        reply.code(500).send({ error: 'Failed to create game' });
-      }
-    }
-  );
 
   // fastify.post('/doris-find', async (request, reply) => {
   //   try {

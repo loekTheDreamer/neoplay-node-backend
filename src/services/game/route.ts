@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
+import prisma from '../db/prisma';
 import {
   deleteGame,
   getPublishedGames,
@@ -32,11 +33,61 @@ export type PublishGameRequest = {
   id?: string;
 };
 
-interface ServeCurrentGameRequest {
-  address: string;
-}
-
 export function registerGameRoutes(fastify: FastifyInstance) {
+  fastify.post(
+    '/game',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      // publisherId comes from the JWT payload
+      const user = (request as any).user;
+      if (!user || !user.id) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+      try {
+        const game = await prisma.game.create({
+          data: {
+            name: 'Untitled Game',
+            genre: 'Unknown',
+            description: '',
+            coverImageUrl: '',
+            publisherId: user.id,
+            tags: []
+          }
+        });
+        reply.code(201).send(game);
+      } catch (error) {
+        reply.code(500).send({ error: 'Failed to create game' });
+      }
+    }
+  );
+
+  fastify.get(
+    '/game/user',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      console.log('/game/user');
+      // publisherId comes from the JWT payload
+      const user = (request as any).user;
+      console.log('user:', user);
+      if (!user || !user.id) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+      try {
+        console.log('user.id:', user.id);
+        const games = await prisma.game.findMany({
+          where: {
+            publisherId: user.id
+          }
+        });
+        console.log('games:', games);
+
+        reply.code(200).send(games);
+      } catch (error) {
+        reply.code(500).send({ error: 'Failed to fetch games' });
+      }
+    }
+  );
+
   fastify.post(
     '/game/save',
     {
