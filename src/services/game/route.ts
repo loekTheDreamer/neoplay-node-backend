@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
 import prisma from '../db/prisma';
 import {
+  createGame,
   deleteGame,
   getPublishedGames,
   publish,
@@ -44,16 +45,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         return reply.code(401).send({ error: 'Unauthorized' });
       }
       try {
-        const game = await prisma.game.create({
-          data: {
-            name: 'Untitled Game',
-            genre: 'Unknown',
-            description: '',
-            coverImageUrl: '',
-            publisherId: user.id,
-            tags: []
-          }
-        });
+        const game = await createGame(user.id);
         reply.code(201).send(game);
       } catch (error) {
         reply.code(500).send({ error: 'Failed to create game' });
@@ -77,6 +69,9 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         const games = await prisma.game.findMany({
           where: {
             publisherId: user.id
+          },
+          include: {
+            threads: true
           }
         });
         console.log('games:', games);
