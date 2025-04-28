@@ -51,6 +51,7 @@ declare module 'fastify' {
     streamContext?: {
       chatHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
       systemPrompt?: string;
+      threadId: string;
     };
     // Add other session properties if needed
   }
