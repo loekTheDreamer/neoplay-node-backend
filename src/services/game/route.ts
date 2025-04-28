@@ -6,7 +6,8 @@ import {
   deleteGame,
   getPublishedGames,
   publish,
-  saveCurrentGame
+  saveCurrentGame,
+  updateGameName
 } from './gameHelpers';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
@@ -32,6 +33,11 @@ export type PublishGameRequest = {
   address: string;
   title: string;
   id?: string;
+};
+
+export type Name = {
+  newName: string;
+  gameId: string;
 };
 
 export function registerGameRoutes(fastify: FastifyInstance) {
@@ -71,7 +77,13 @@ export function registerGameRoutes(fastify: FastifyInstance) {
             publisherId: user.id
           },
           include: {
-            threads: true
+            threads: {
+              select: {
+                id: true,
+                createdAt: true,
+                messages: true
+              }
+            }
           }
         });
         console.log('games:', games);
@@ -79,6 +91,31 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         reply.code(200).send(games);
       } catch (error) {
         reply.code(500).send({ error: 'Failed to fetch games' });
+      }
+    }
+  );
+
+  fastify.post(
+    '/game/name',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      console.log('/game/name...');
+
+      const user = (request as any).user;
+      if (!user || !user.id) {
+        console.log('Unauthorized');
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+
+      try {
+        const body = request.body as Name;
+        const { newName, gameId } = body;
+        console.log('newName:', newName);
+        console.log('gameId:', gameId);
+        await updateGameName(gameId, newName);
+        return reply.code(200).send({ success: true });
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
       }
     }
   );

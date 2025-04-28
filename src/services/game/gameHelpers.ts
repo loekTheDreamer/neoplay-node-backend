@@ -212,6 +212,19 @@ export async function publish({
   }
 }
 
+export const updateGameName = async (gameId: string, newName: string) => {
+  try {
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { name: newName }
+    });
+    return true;
+  } catch (error) {
+    console.error('Error updating game name:', error);
+    throw error;
+  }
+};
+
 export async function getPublishedGames() {
   try {
     const games = await fsp.readFile(
