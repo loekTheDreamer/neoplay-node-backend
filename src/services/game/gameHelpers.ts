@@ -163,16 +163,6 @@ export async function saveCurrentGame({
   }
 }
 
-export async function serveCurrentGame(address: string): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: config.SEVALLA_BUCKET_NAME,
-    Key: `current_game/${address}`
-  });
-  const url = await getSignedUrl(s3, command, { expiresIn: 60 * 60 }); // 1 hour
-  console.log('url:', url);
-  return url;
-}
-
 export async function deleteGame(address: string): Promise<void> {
   try {
     const dir = path.resolve(
