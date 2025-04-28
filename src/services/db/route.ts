@@ -5,6 +5,7 @@ import { verifyMessage } from 'ethers';
 import { signJwt, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
 import { authMiddleware } from '../../middleware/auth';
 import prisma from './prisma'; // adjust the path as needed
+import { createGame } from '../game/gameHelpers';
 
 interface User {
   address: string;
@@ -38,7 +39,7 @@ export function registerDbRoutes(fastify: FastifyInstance) {
       signature: string;
     };
     try {
-      let user = await prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { walletAddress: address }
       });
       if (!user || !user.nonce) {
@@ -48,11 +49,6 @@ export function registerDbRoutes(fastify: FastifyInstance) {
       }
       const message = `Sign this message to login: ${user.nonce}`;
       const recoveredAddress = verifyMessage(message, signature);
-      console.log(
-        'must be address:',
-        '0x48f79AC485a1F263c9b835Da6ac70212054891Ec'
-      );
-      console.log('recoveredAddress:', recoveredAddress);
 
       if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
         return reply.code(401).send({ error: 'Invalid signature' });
@@ -63,10 +59,19 @@ export function registerDbRoutes(fastify: FastifyInstance) {
         where: { walletAddress: address },
         data: { nonce: null }
       });
-      console.log('clear nonce');
-
       // Issue JWTs
       const token = signJwt({ id: user.id, address });
+
+      const games = await prisma.game.findMany({
+        where: {
+          publisherId: user.id
+        }
+      });
+      console.log('games:', games);
+      console.log('user:', user.id);
+      if (games.length === 0) {
+        await createGame(user.id);
+      }
       // const refreshToken = signRefreshToken({ id: user.id, address });
 
       // // Set refresh token as httpOnly cookie

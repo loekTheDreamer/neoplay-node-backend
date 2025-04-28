@@ -6,6 +6,7 @@ import { FastifyReply } from 'fastify/types/reply';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { config } from '../../config/env';
+import prisma from '../db/prisma';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,20 +34,32 @@ interface PublishGameRequest {
   reply: FastifyReply;
 }
 
-const contentType = (filename: string) => {
-  if (filename.endsWith('.html')) {
-    return 'text/html';
+export const createGame = async (userId: string) => {
+  try {
+    const game = await prisma.game.create({
+      data: {
+        name: 'Untitled Game',
+        genre: 'Unknown',
+        description: '',
+        coverImageUrl: '',
+        publisherId: userId,
+        tags: []
+      }
+    });
+
+    // Create an initial thread for the game
+    await prisma.thread.create({
+      data: {
+        gameId: game.id,
+        userId: userId
+      }
+    });
+
+    return game;
+  } catch (error) {
+    console.log('error creating game:', error);
+    throw error;
   }
-  if (filename.endsWith('.js')) {
-    return 'application/javascript';
-  }
-  if (filename.endsWith('.css')) {
-    return 'text/css';
-  }
-  if (filename.endsWith('.svg')) {
-    return 'image/svg+xml';
-  }
-  return 'application/octet-stream';
 };
 
 export async function saveCurrentGame({
