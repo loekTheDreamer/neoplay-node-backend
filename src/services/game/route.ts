@@ -76,33 +76,74 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       if (!user || !user.id) {
         return reply.code(401).send({ error: 'Unauthorized' });
       }
+
+      const threadId = (request.query as any).threadId;
+
       try {
         console.log('user.id:', user.id);
-        // Get the latest game for the user
-        const latestGame = await prisma.game.findFirst({
-          where: { publisherId: user.id },
-          orderBy: { createdAt: 'asc' },
-          include: {
-            threads: {
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-              select: {
-                id: true,
-                createdAt: true,
-                messages: {
-                  orderBy: { createdAt: 'asc' },
-                  select: {
-                    id: true,
-                    content: true,
-                    createdAt: true,
-                    role: true,
-                    senderId: true
+        console.log('threadId:', threadId);
+        let latestGame;
+        if (threadId) {
+          // Find the latest game for the user that contains this threadId
+          latestGame = await prisma.game.findFirst({
+            where: {
+              publisherId: user.id,
+              threads: {
+                some: {
+                  id: threadId
+                }
+              }
+            },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              threads: {
+                where: { id: threadId },
+                select: {
+                  id: true,
+                  createdAt: true,
+                  messages: {
+                    orderBy: { createdAt: 'asc' },
+                    select: {
+                      id: true,
+                      content: true,
+                      createdAt: true,
+                      role: true,
+                      senderId: true
+                    }
                   }
                 }
               }
             }
-          }
-        });
+          });
+        } else {
+          // Get the latest game for the user (with latest thread)
+          latestGame = await prisma.game.findFirst({
+            where: { publisherId: user.id },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              threads: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: {
+                  id: true,
+                  createdAt: true,
+                  messages: {
+                    orderBy: { createdAt: 'asc' },
+                    select: {
+                      id: true,
+                      content: true,
+                      createdAt: true,
+                      role: true,
+                      senderId: true
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+
+        console.log('latestGame:', latestGame);
 
         // Get all game names and published status, ordered by creation
         const gameList = await prisma.game.findMany({
@@ -254,7 +295,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: 'Thread not found' });
         }
 
-        return reply.code(200).send({ thread });
+        return reply.code(200).send(thread);
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }
