@@ -56,7 +56,20 @@ export const createGame = async (userId: string) => {
       }
     });
 
-    return game;
+    // Fetch the game with associated thread(s)
+    const gameWithThread = await prisma.game.findUnique({
+      where: { id: game.id },
+      include: {
+        threads: {
+          select: {
+            id: true,
+            createdAt: true
+          }
+        }
+      }
+    });
+
+    return gameWithThread;
   } catch (error) {
     console.log('error creating game:', error);
     throw error;
