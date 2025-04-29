@@ -2,9 +2,11 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../config/env';
 import prisma from '../db/prisma';
 import {
+  addThread,
   createGame,
   deleteGame,
   getPublishedGames,
+  getThreadById,
   publish,
   saveCurrentGame,
   updateGameName
@@ -23,6 +25,10 @@ export interface GameFiles {
 export type SaveGameRequest = {
   gameFiles: GameFiles[];
   address?: string; // Now optional as we get it from the token
+};
+
+export type AddThreadRequest = {
+  gameId: string;
 };
 
 export type DeleteGameRequest = {
@@ -75,10 +81,10 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         // Get the latest game for the user
         const latestGame = await prisma.game.findFirst({
           where: { publisherId: user.id },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: 'asc' },
           include: {
             threads: {
-              orderBy: { createdAt: 'asc' },
+              orderBy: { createdAt: 'desc' },
               take: 1,
               select: {
                 id: true,
@@ -110,6 +116,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
             createdAt: true,
             status: true,
             threads: {
+              orderBy: { createdAt: 'desc' },
               select: {
                 id: true,
                 createdAt: true,
@@ -189,6 +196,65 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         await saveCurrentGame({ gameFiles, address, reply });
 
         return reply.code(200).send({ success: true });
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+    }
+  );
+
+  fastify.post(
+    '/game/thread',
+    {
+      preHandler: authMiddleware
+    },
+    async (request, reply) => {
+      console.log('registerGameRoutes...');
+      try {
+        const user = (request as any).user as JwtPayload;
+        console.log('user:', user);
+        if (!user || !user.id) {
+          return reply.code(401).send({ error: 'Unauthorized' });
+        }
+
+        const body = request.body as AddThreadRequest;
+        const { gameId } = body;
+
+        if (!gameId) {
+          return reply.code(400).send({ error: 'Missing gameId' });
+        }
+
+        const id = await addThread(gameId, user.id);
+
+        return reply.code(200).send({ success: true, id });
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+    }
+  );
+  fastify.get(
+    '/game/thread',
+    {
+      preHandler: authMiddleware
+    },
+    async (request, reply) => {
+      try {
+        const user = (request as any).user as JwtPayload;
+        if (!user || !user.id) {
+          return reply.code(401).send({ error: 'Unauthorized' });
+        }
+
+        const id = (request.query as any).id;
+        if (!id) {
+          return reply.code(400).send({ error: 'Missing threadId' });
+        }
+
+        const thread = await getThreadById(id);
+
+        if (!thread) {
+          return reply.code(404).send({ error: 'Thread not found' });
+        }
+
+        return reply.code(200).send({ thread });
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }

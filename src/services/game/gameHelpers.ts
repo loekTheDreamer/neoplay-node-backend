@@ -274,3 +274,43 @@ export const addThreadMessage = async (
     throw error;
   }
 };
+
+export const addThread = async (gameId: string, userId: string) => {
+  try {
+    const { id } = await prisma.thread.create({
+      data: {
+        gameId,
+        userId
+      }
+    });
+    return id;
+  } catch (error) {
+    console.error('Error adding thread:', error);
+    throw error;
+  }
+};
+
+export const getThreadById = async (threadId: string) => {
+  try {
+    const thread = await prisma.thread.findUnique({
+      where: { id: threadId },
+      select: {
+        id: true,
+        gameId: true,
+        createdAt: true,
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            content: true,
+            role: true
+          }
+        }
+      }
+    });
+    return thread;
+  } catch (error) {
+    console.error('Error fetching thread:', error);
+    throw error;
+  }
+};
