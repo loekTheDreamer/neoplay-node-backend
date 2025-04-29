@@ -72,23 +72,64 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       }
       try {
         console.log('user.id:', user.id);
-        const games = await prisma.game.findMany({
-          where: {
-            publisherId: user.id
-          },
+        // Get the latest game for the user
+        const latestGame = await prisma.game.findFirst({
+          where: { publisherId: user.id },
+          orderBy: { createdAt: 'desc' },
           include: {
             threads: {
+              orderBy: { createdAt: 'asc' },
+              take: 1,
               select: {
                 id: true,
                 createdAt: true,
-                messages: true
+                messages: {
+                  orderBy: { createdAt: 'asc' },
+                  select: {
+                    id: true,
+                    content: true,
+                    createdAt: true,
+                    role: true,
+                    senderId: true
+                  }
+                }
               }
             }
           }
         });
-        console.log('games:', games);
 
-        reply.code(200).send(games);
+        // Get all game names and published status, ordered by creation
+        const gameList = await prisma.game.findMany({
+          where: {
+            publisherId: user.id
+          },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+            status: true,
+            threads: {
+              select: {
+                id: true,
+                createdAt: true,
+                messages: {
+                  orderBy: { createdAt: 'asc' },
+                  take: 1,
+                  select: {
+                    id: true,
+                    content: true,
+                    createdAt: true,
+                    role: true,
+                    senderId: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        reply.code(200).send({ latestGame, gameList });
       } catch (error) {
         reply.code(500).send({ error: 'Failed to fetch games' });
       }
