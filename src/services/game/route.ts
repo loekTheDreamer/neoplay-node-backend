@@ -51,14 +51,15 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     '/game',
     { preHandler: authMiddleware },
     async (request, reply) => {
+      console.log('/game...');
       // publisherId comes from the JWT payload
       const user = (request as any).user;
       if (!user || !user.id) {
         return reply.code(401).send({ error: 'Unauthorized' });
       }
       try {
-        const game = await createGame(user.id);
-        reply.code(201).send(game);
+        const gameWithThread = await createGame(user.id);
+        reply.code(201).send(gameWithThread);
       } catch (error) {
         reply.code(500).send({ error: 'Failed to create game' });
       }
@@ -78,10 +79,24 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       }
 
       const threadId = (request.query as any).threadId;
+      console.log('Received threadId:', threadId);
 
       try {
         console.log('user.id:', user.id);
         console.log('threadId:', threadId);
+        // Check all games for this user to see if any have the threadId
+        const allGames = await prisma.game.findMany({
+          where: { publisherId: user.id },
+          include: { threads: { select: { id: true } } }
+        });
+        console.log(
+          'All games for user:',
+          allGames.map((game) => ({
+            id: game.id,
+            threadIds: game.threads.map((t) => t.id)
+          }))
+        );
+
         let latestGame;
         if (threadId) {
           // Find the latest game for the user that contains this threadId
@@ -115,7 +130,14 @@ export function registerGameRoutes(fastify: FastifyInstance) {
               }
             }
           });
+          if (!latestGame) {
+            console.log(`No game found for threadId: ${threadId}`);
+            return reply.code(404).send({
+              error: `No game found for threadId: ${threadId}. The ID provided might not be a thread ID.`
+            });
+          }
         } else {
+          console.log('here');
           // Get the latest game for the user (with latest thread)
           latestGame = await prisma.game.findFirst({
             where: { publisherId: user.id },
