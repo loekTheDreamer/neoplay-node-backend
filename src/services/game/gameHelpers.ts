@@ -308,7 +308,7 @@ export const addThread = async (gameId: string, userId: string) => {
       where: { gameId },
       include: {
         messages: {
-          take: 1,
+          take: 2,
           orderBy: { createdAt: 'asc' },
           select: { id: true, role: true }
         }
@@ -318,7 +318,9 @@ export const addThread = async (gameId: string, userId: string) => {
     // If any thread has zero messages, do NOT create a new thread
     const threadWithNoMessages = threads.find(
       (thread) =>
-        thread.messages.length === 0 || thread.messages[0].role === 'assistant'
+        thread.messages.length === 0 ||
+        (thread.messages[0].role === 'assistant' &&
+          thread.messages.length === 1)
     );
     if (threadWithNoMessages) {
       return { id: undefined, codeblocks: undefined };
@@ -510,7 +512,7 @@ export const getLatestGame = async ({
           createdAt: true,
           messages: {
             orderBy: { createdAt: 'asc' },
-            take: 1,
+            take: 2,
             select: {
               id: true,
               content: true,
