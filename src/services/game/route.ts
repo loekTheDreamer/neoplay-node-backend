@@ -4,7 +4,7 @@ import prisma from '../db/prisma';
 import {
   addThread,
   createGame,
-  createGameFiles,
+  upsertGameFile,
   deleteGame,
   getPublishedGames,
   getThreadById,
@@ -259,7 +259,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
 
         // Save each file
         await saveCurrentGame({ gameFiles, address, reply });
-        await createGameFiles(gameId, address);
+        await upsertGameFile({ gameId, gameFiles });
 
         return reply.code(200).send({ success: true });
       } catch (err) {
@@ -335,15 +335,13 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const user = (request as any).user as JwtPayload;
-        if (!user || !user.id) {
-          return reply.code(401).send({ error: 'Unauthorized' });
-        }
-
-        const body = request.body as CreateGameFilesRequest;
-        const { gameId } = body;
-
-        await createGameFiles(gameId);
+        // const user = (request as any).user as JwtPayload;
+        // if (!user || !user.id) {
+        //   return reply.code(401).send({ error: 'Unauthorized' });
+        // }
+        // const body = request.body as CreateGameFilesRequest;
+        // const { gameId } = body;
+        // await upsertGameFile(gameId);
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }
