@@ -8,6 +8,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { config } from '../../config/env';
 import prisma from '../db/prisma';
 import { ChatCompletionMessageParam } from 'openai/resources.mjs';
+import { JwtPayload } from 'jsonwebtoken';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,9 +100,7 @@ export async function saveCurrentGame({
           .status(400)
           .send({ error: 'Invalid file object in gameFiles' });
       }
-      console.log('go save it');
 
-      console.log('here');
       // Compute the full file path for this file (including any nested directories in filename)
       const baseDir = path.resolve(
         __dirname,
@@ -359,6 +358,192 @@ export const upsertGameFile = async ({
     return upsertedFiles;
   } catch (error) {
     console.error('Error upserting game files:', error);
+    throw error;
+  }
+};
+
+interface GetLatestGameParams {
+  threadId: string;
+  userId: string;
+  reply: FastifyReply;
+}
+export const getLatestGame = async ({
+  threadId,
+  userId,
+  reply
+}: GetLatestGameParams) => {
+  let latestGame;
+  if (threadId) {
+    // Find the latest game for the user that contains this threadId
+    latestGame = await prisma.game.findFirst({
+      where: {
+        publisherId: userId,
+        threads: {
+          some: {
+            id: threadId
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        threads: {
+          where: { id: threadId },
+          select: {
+            id: true,
+            createdAt: true,
+            messages: {
+              orderBy: { createdAt: 'asc' },
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                role: true,
+                senderId: true
+              }
+            }
+          }
+        }
+      }
+    });
+    if (!latestGame) {
+      console.log(`No game found for threadId: ${threadId}`);
+      return reply.code(404).send({
+        error: `No game found for threadId: ${threadId}. The ID provided might not be a thread ID.`
+      });
+    }
+  } else {
+    console.log('here');
+    // Get the latest game for the user (with latest thread)
+    latestGame = await prisma.game.findFirst({
+      where: { publisherId: userId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        threads: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            createdAt: true,
+            messages: {
+              orderBy: { createdAt: 'asc' },
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                role: true,
+                senderId: true
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  console.log('latestGame:', latestGame);
+
+  // Get all game names and published status, ordered by creation
+  const gameList = await prisma.game.findMany({
+    where: {
+      publisherId: userId
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      createdAt: true,
+      status: true,
+      threads: {
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          createdAt: true,
+          messages: {
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              role: true,
+              senderId: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return { latestGame, gameList };
+};
+
+interface UpdateLocalServerWithGameParams {
+  threadId: string;
+  user: JwtPayload;
+  reply: FastifyReply;
+}
+
+export const updateLocalServerWithGame = async ({
+  threadId,
+  user,
+  reply
+}: UpdateLocalServerWithGameParams) => {
+  console.log('updateLocalServerWithGame...');
+  const { userId, address } = user;
+
+  try {
+    // 1. Find the thread and get the gameId
+    const thread = await prisma.thread.findUnique({
+      where: { id: threadId },
+      select: { gameId: true }
+    });
+    if (!thread || !thread.gameId) {
+      throw new Error('Thread not found or missing gameId');
+    }
+    const gameId = thread.gameId;
+
+    // 2. Find all game files associated with the gameId
+    const gameFiles = await prisma.gameFile.findMany({
+      where: { gameId },
+      select: {
+        id: true,
+        filename: true,
+        code: true,
+        type: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    // console.log('gameFiles:', gameFiles[0].filename);
+
+    // Remove the folder public/currentGame/{address} and all its contents (Node 20+)
+    const folderPath = path.join('public', 'currentGame', address);
+    try {
+      if (existsSync(folderPath)) {
+        await fsp.rm(folderPath, { recursive: true, force: true });
+        console.log(`Removed folder: ${folderPath}`);
+      } else {
+        console.log(`Folder does not exist: ${folderPath}`);
+        // return;
+      }
+    } catch (err) {
+      console.warn(`Could not remove folder ${folderPath}:`, err);
+      return;
+    }
+
+    if (gameFiles.length === 0) {
+      return;
+    }
+
+    await saveCurrentGame({ gameFiles, address, reply });
+    for (const file of gameFiles) {
+      console.log('file:', file.filename);
+    }
+
+    // You can return or process gameFiles as needed
+    // return gameFiles;
+  } catch (error) {
+    console.error('Error in updateLocalServerWithGame:', error);
     throw error;
   }
 };
