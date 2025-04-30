@@ -310,14 +310,15 @@ export const addThread = async (gameId: string, userId: string) => {
         messages: {
           take: 1,
           orderBy: { createdAt: 'asc' },
-          select: { id: true }
+          select: { id: true, role: true }
         }
       }
     });
 
     // If any thread has zero messages, do NOT create a new thread
     const threadWithNoMessages = threads.find(
-      (thread) => thread.messages.length === 0
+      (thread) =>
+        thread.messages.length === 0 || thread.messages[0].role === 'assistant'
     );
     if (threadWithNoMessages) {
       return { id: undefined, codeblocks: undefined };
@@ -334,6 +335,8 @@ export const addThread = async (gameId: string, userId: string) => {
     });
     const codeBlocks = filesToCodeblocks(files);
     console.log('codeblocks:', codeBlocks);
+
+    await addThreadMessage(id, { role: 'assistant', content: codeBlocks });
 
     return { id, codeBlocks };
     // // Check if any thread has messages
