@@ -10,7 +10,9 @@ import {
   getThreadById,
   publish,
   saveCurrentGame,
-  updateGameName
+  updateGameName,
+  getLatestGame,
+  updateLocalServerWithGame
 } from './gameHelpers';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
@@ -102,107 +104,15 @@ export function registerGameRoutes(fastify: FastifyInstance) {
           }))
         );
 
-        let latestGame;
-        if (threadId) {
-          // Find the latest game for the user that contains this threadId
-          latestGame = await prisma.game.findFirst({
-            where: {
-              publisherId: user.id,
-              threads: {
-                some: {
-                  id: threadId
-                }
-              }
-            },
-            orderBy: { createdAt: 'asc' },
-            include: {
-              threads: {
-                where: { id: threadId },
-                select: {
-                  id: true,
-                  createdAt: true,
-                  messages: {
-                    orderBy: { createdAt: 'asc' },
-                    select: {
-                      id: true,
-                      content: true,
-                      createdAt: true,
-                      role: true,
-                      senderId: true
-                    }
-                  }
-                }
-              }
-            }
-          });
-          if (!latestGame) {
-            console.log(`No game found for threadId: ${threadId}`);
-            return reply.code(404).send({
-              error: `No game found for threadId: ${threadId}. The ID provided might not be a thread ID.`
-            });
-          }
-        } else {
-          console.log('here');
-          // Get the latest game for the user (with latest thread)
-          latestGame = await prisma.game.findFirst({
-            where: { publisherId: user.id },
-            orderBy: { createdAt: 'asc' },
-            include: {
-              threads: {
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-                select: {
-                  id: true,
-                  createdAt: true,
-                  messages: {
-                    orderBy: { createdAt: 'asc' },
-                    select: {
-                      id: true,
-                      content: true,
-                      createdAt: true,
-                      role: true,
-                      senderId: true
-                    }
-                  }
-                }
-              }
-            }
-          });
-        }
-
-        console.log('latestGame:', latestGame);
-
-        // Get all game names and published status, ordered by creation
-        const gameList = await prisma.game.findMany({
-          where: {
-            publisherId: user.id
-          },
-          orderBy: { createdAt: 'asc' },
-          select: {
-            id: true,
-            name: true,
-            createdAt: true,
-            status: true,
-            threads: {
-              orderBy: { createdAt: 'desc' },
-              select: {
-                id: true,
-                createdAt: true,
-                messages: {
-                  orderBy: { createdAt: 'asc' },
-                  take: 1,
-                  select: {
-                    id: true,
-                    content: true,
-                    createdAt: true,
-                    role: true,
-                    senderId: true
-                  }
-                }
-              }
-            }
-          }
+        const { latestGame, gameList } = await getLatestGame({
+          threadId,
+          userId: user.id,
+          reply
         });
+
+        await updateLocalServerWithGame({ threadId, user, reply });
+        // i need to update the server with the game threadId of the active game
+        //
 
         reply.code(200).send({ latestGame, gameList });
       } catch (error) {
@@ -288,7 +198,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         if (!gameId) {
           return reply.code(400).send({ error: 'Missing gameId' });
         }
-
+        console.log('gameId:', gameId);
         const id = await addThread(gameId, user.id);
 
         return reply.code(200).send({ success: true, id });
@@ -319,7 +229,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         if (!thread) {
           return reply.code(404).send({ error: 'Thread not found' });
         }
-
+        await updateLocalServerWithGame({ threadId: id, user: user, reply });
         return reply.code(200).send(thread);
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
