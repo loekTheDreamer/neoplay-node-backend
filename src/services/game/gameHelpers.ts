@@ -9,6 +9,7 @@ import { config } from '../../config/env';
 import prisma from '../db/prisma';
 import { ChatCompletionMessageParam } from 'openai/resources.mjs';
 import { JwtPayload } from 'jsonwebtoken';
+import { filesToCodeblocks } from '../../utils/codeBlocks';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -256,18 +257,26 @@ export async function getPublishedGames() {
   }
 }
 
-export const getThreadMessages = async (threadId: string) => {
-  try {
-    const messages = await prisma.message.findMany({
-      where: { threadId },
-      orderBy: { createdAt: 'asc' }
-    });
-    return messages;
-  } catch (error) {
-    console.error('Error fetching thread messages:', error);
-    throw error;
-  }
-};
+// export const getThreadMessages = async (threadId: string) => {
+//   try {
+//     const messages = await prisma.message.findMany({
+//       where: { threadId },
+//       orderBy: { createdAt: 'asc' }
+//     });
+
+//     const files = await prisma.gameFile.findMany({
+//       where: { gameId },
+//       select: { filename: true, type: true, code: true }
+//     });
+//     const codeblocks = filesToCodeblocks(files);
+//     console.log('codeblocks:', codeblocks);
+
+//     return messages;
+//   } catch (error) {
+//     console.error('Error fetching thread messages:', error);
+//     throw error;
+//   }
+// };
 
 interface MessageParam {
   role: 'system' | 'user' | 'assistant';
@@ -311,14 +320,22 @@ export const addThread = async (gameId: string, userId: string) => {
       (thread) => thread.messages.length === 0
     );
     if (threadWithNoMessages) {
-      return undefined;
+      return { id: undefined, codeblocks: undefined };
     }
 
     // All threads have at least one message (or no threads exist), create a new thread
     const { id } = await prisma.thread.create({
       data: { gameId, userId }
     });
-    return id;
+
+    const files = await prisma.gameFile.findMany({
+      where: { gameId },
+      select: { filename: true, type: true, code: true }
+    });
+    const codeBlocks = filesToCodeblocks(files);
+    console.log('codeblocks:', codeBlocks);
+
+    return { id, codeBlocks };
     // // Check if any thread has messages
     // const threadWithMessages = threads.find(
     //   (thread) => thread.messages.length > 0
@@ -354,6 +371,7 @@ export const getThreadById = async (threadId: string) => {
         }
       }
     });
+
     return thread;
   } catch (error) {
     console.error('Error fetching thread:', error);
