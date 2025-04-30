@@ -93,4 +93,5 @@ model GameFile {
   gameId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@unique([gameId, filename])
 }

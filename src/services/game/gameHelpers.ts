@@ -37,8 +37,7 @@ interface PublishGameRequest {
 
 interface SaveGameFilesToDB {
   gameId: string;
-  files: GameFiles[];
-  address: string;
+  gameFiles: GameFiles[];
 }
 
 export const createGame = async (userId: string) => {
@@ -334,25 +333,32 @@ export const getThreadById = async (threadId: string) => {
   }
 };
 
-export const createGameFiles = async ({
+export const upsertGameFile = async ({
   gameId,
-  address,
   gameFiles
 }: SaveGameFilesToDB) => {
   try {
-    const files = await prisma.gameFile.findMany({
-      where: { gameId },
-      select: {
-        id: true,
-        filename: true,
-        type: true
-      }
-    });
-
-    console.log('files:', files);
-    // return files;
+    const upsertedFiles = await Promise.all(
+      gameFiles.map(
+        async (file: { filename: string; type: string; code: string }) => {
+          const { filename, type, code } = file;
+          return prisma.gameFile.upsert({
+            where: {
+              gameId_filename: {
+                gameId,
+                filename
+              }
+            },
+            update: { type, code },
+            create: { filename, type, code, gameId }
+          });
+        }
+      )
+    );
+    console.log('upsertedFiles:', upsertedFiles);
+    return upsertedFiles;
   } catch (error) {
-    console.error('Error fetching game files:', error);
+    console.error('Error upserting game files:', error);
     throw error;
   }
 };
