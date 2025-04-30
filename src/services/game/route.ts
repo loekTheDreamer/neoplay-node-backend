@@ -199,9 +199,9 @@ export function registerGameRoutes(fastify: FastifyInstance) {
           return reply.code(400).send({ error: 'Missing gameId' });
         }
         console.log('gameId:', gameId);
-        const id = await addThread(gameId, user.id);
+        const { id, codeBlocks } = await addThread(gameId, user.id);
 
-        return reply.code(200).send({ success: true, id: id });
+        return reply.code(200).send({ success: true, id: id, codeBlocks });
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }
