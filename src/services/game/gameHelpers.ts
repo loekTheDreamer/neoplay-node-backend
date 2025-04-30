@@ -294,13 +294,42 @@ export const addThreadMessage = async (
 
 export const addThread = async (gameId: string, userId: string) => {
   try {
-    const { id } = await prisma.thread.create({
-      data: {
-        gameId,
-        userId
+    // Find all threads for the game, including their messages
+    const threads = await prisma.thread.findMany({
+      where: { gameId },
+      include: {
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+          select: { id: true }
+        }
       }
     });
+
+    // If any thread has zero messages, do NOT create a new thread
+    const threadWithNoMessages = threads.find(
+      (thread) => thread.messages.length === 0
+    );
+    if (threadWithNoMessages) {
+      return undefined;
+    }
+
+    // All threads have at least one message (or no threads exist), create a new thread
+    const { id } = await prisma.thread.create({
+      data: { gameId, userId }
+    });
     return id;
+    // // Check if any thread has messages
+    // const threadWithMessages = threads.find(
+    //   (thread) => thread.messages.length > 0
+    // );
+    // if (threadWithMessages) {
+    //   // Return the id of the first thread with messages
+    //   return threadWithMessages.id;
+    // } else {
+    //   // Threads exist but none have messages; do NOT create a new thread
+    //   return undefined;
+    // }
   } catch (error) {
     console.error('Error adding thread:', error);
     throw error;

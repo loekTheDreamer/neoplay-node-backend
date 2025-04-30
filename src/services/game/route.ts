@@ -201,7 +201,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         console.log('gameId:', gameId);
         const id = await addThread(gameId, user.id);
 
-        return reply.code(200).send({ success: true, id });
+        return reply.code(200).send({ success: true, id: id });
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }
