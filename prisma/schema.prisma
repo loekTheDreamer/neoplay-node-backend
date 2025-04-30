@@ -60,8 +60,8 @@ model Game {
   likedBy       Like[]
   threads       Thread[]
   status        GameStatus @default(DRAFT)
+  gameFiles     GameFile[]
 }
-
 model Message {
   id        String   @id @default(uuid())
   thread    Thread   @relation(fields: [threadId], references: [id])
@@ -84,3 +84,13 @@ model Thread {
   messages  Message[]
 }
 
+model GameFile {
+  id        String   @id @default(uuid())
+  filename  String
+  code      String
+  type      String
+  game      Game     @relation(fields: [gameId], references: [id])
+  gameId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

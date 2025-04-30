@@ -4,6 +4,7 @@ import prisma from '../db/prisma';
 import {
   addThread,
   createGame,
+  createGameFiles,
   deleteGame,
   getPublishedGames,
   getThreadById,
@@ -24,7 +25,7 @@ export interface GameFiles {
 
 export type SaveGameRequest = {
   gameFiles: GameFiles[];
-  address?: string; // Now optional as we get it from the token
+  gameId: string;
 };
 
 export type AddThreadRequest = {
@@ -45,6 +46,10 @@ export type Name = {
   newName: string;
   gameId: string;
 };
+
+interface CreateGameFilesRequest {
+  gameId: string;
+}
 
 export function registerGameRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -240,14 +245,11 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       console.log('registerGameRoutes...');
       try {
         const body = request.body as SaveGameRequest;
-        const { gameFiles } = body;
+        const { gameFiles, gameId } = body;
 
         // Get the address from the authenticated user data
         const user = (request as any).user as JwtPayload;
         const address = user.address;
-
-        console.log('address from token:', address);
-        console.log('gameFiles:', gameFiles);
 
         if (!gameFiles || !Array.isArray(gameFiles) || gameFiles.length === 0) {
           return reply.code(400).send({
@@ -257,6 +259,7 @@ export function registerGameRoutes(fastify: FastifyInstance) {
 
         // Save each file
         await saveCurrentGame({ gameFiles, address, reply });
+        await createGameFiles(gameId, address);
 
         return reply.code(200).send({ success: true });
       } catch (err) {
@@ -324,6 +327,29 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Todo remove this affter testing
+  fastify.post(
+    '/files/create',
+    {
+      preHandler: authMiddleware
+    },
+    async (request, reply) => {
+      try {
+        const user = (request as any).user as JwtPayload;
+        if (!user || !user.id) {
+          return reply.code(401).send({ error: 'Unauthorized' });
+        }
+
+        const body = request.body as CreateGameFilesRequest;
+        const { gameId } = body;
+
+        await createGameFiles(gameId);
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+    }
+  );
+
   fastify.post('/delete', async (request, reply) => {
     const body = request.body as DeleteGameRequest;
 
@@ -343,31 +369,37 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post('/publish', async (request, reply) => {
-    const body = request.body as PublishGameRequest;
+  fastify.post(
+    '/publish',
+    {
+      preHandler: authMiddleware
+    },
+    async (request, reply) => {
+      const body = request.body as PublishGameRequest;
 
-    const { address, title, id } = body;
+      const { address, title, id } = body;
 
-    if (!address) {
-      return reply.code(400).send({
-        error: 'Missing or invalid address in request body'
-      });
+      if (!address) {
+        return reply.code(400).send({
+          error: 'Missing or invalid address in request body'
+        });
+      }
+
+      if (!title) {
+        return reply.code(400).send({
+          error: 'Missing or invalid title in request body'
+        });
+      }
+
+      try {
+        const gameId = await publish({ address, title, id, reply });
+        return reply.code(200).send(gameId);
+        // return reply.send({ success: true });
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
     }
-
-    if (!title) {
-      return reply.code(400).send({
-        error: 'Missing or invalid title in request body'
-      });
-    }
-
-    try {
-      const gameId = await publish({ address, title, id, reply });
-      return reply.code(200).send(gameId);
-      // return reply.send({ success: true });
-    } catch (err) {
-      return reply.code(500).send({ error: (err as Error).message });
-    }
-  });
+  );
 
   fastify.get('/published', async (request, reply) => {
     try {
