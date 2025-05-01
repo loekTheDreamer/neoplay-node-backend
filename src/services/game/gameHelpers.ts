@@ -30,12 +30,12 @@ interface SaveGameFileRequest {
   reply: FastifyReply;
 }
 
-interface PublishGameRequest {
-  address: string;
-  title: string;
-  id?: string;
-  reply: FastifyReply;
-}
+// interface PublishGameRequest {
+//   address: string;
+//   title: string;
+//   id?: string;
+//   reply: FastifyReply;
+// }
 
 interface SaveGameFilesToDB {
   gameId: string;
@@ -61,7 +61,6 @@ export const createGame = async (userId: string) => {
         name: 'Untitled Game',
         genre: 'Unknown',
         description: '',
-        coverImageUrl: '',
         publisherId: userId,
         tags: []
       }
@@ -150,97 +149,97 @@ export async function deleteGame(address: string): Promise<void> {
   }
 }
 
-export async function publish({
-  address,
-  title,
-  id,
-  reply
-}: PublishGameRequest): Promise<any> {
-  try {
-    console.log('Incoming id:', id);
-    const gameId =
-      id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
-    console.log('Resolved gameId:', gameId);
-    const bucket = config.SEVALLA_BUCKET_NAME || 'your-bucket-name';
-    const srcDir = path.resolve(
-      __dirname,
-      `../../../public/currentGame/${address}`
-    );
-    const destPrefix = `published/${gameId}/`;
+// export async function publish({
+//   address,
+//   title,
+//   id,
+//   reply
+// }: PublishGameRequest): Promise<any> {
+//   try {
+//     console.log('Incoming id:', id);
+//     const gameId =
+//       id && typeof id === 'string' && id.trim() !== '' ? id.trim() : uuidv4();
+//     console.log('Resolved gameId:', gameId);
+//     const bucket = config.SEVALLA_BUCKET_NAME || 'your-bucket-name';
+//     const srcDir = path.resolve(
+//       __dirname,
+//       `../../../public/currentGame/${address}`
+//     );
+//     const destPrefix = `published/${gameId}/`;
 
-    // 1. List all files under public/currentGames/{address}/
-    let files: string[] = [];
-    console.log('here:', files);
-    try {
-      files = await fsp.readdir(srcDir);
-      console.log('files:', files);
-    } catch (err) {
-      reply.code(404).send({ error: 'No files found for this game' });
-      return;
-    }
-    if (!files || files.length === 0) {
-      reply.code(404).send({ error: 'No files found for this game' });
-      return;
-    }
-    // 2. Upload each file to published/{gameId}/ in S3
-    const copyPromises = files.map(async (file) => {
-      const filePath = path.join(srcDir, file);
-      const destKey = destPrefix + file;
-      try {
-        const fileContent = await fsp.readFile(filePath);
-        await s3.send(
-          new PutObjectCommand({
-            Bucket: bucket,
-            Key: destKey,
-            Body: fileContent
-          })
-        );
-        console.log(`Uploaded ${filePath} to ${destKey}`);
-      } catch (err) {
-        console.log('Upload error:', err);
-        throw err;
-      }
-    });
-    await Promise.all(copyPromises);
+//     // 1. List all files under public/currentGames/{address}/
+//     let files: string[] = [];
+//     console.log('here:', files);
+//     try {
+//       files = await fsp.readdir(srcDir);
+//       console.log('files:', files);
+//     } catch (err) {
+//       reply.code(404).send({ error: 'No files found for this game' });
+//       return;
+//     }
+//     if (!files || files.length === 0) {
+//       reply.code(404).send({ error: 'No files found for this game' });
+//       return;
+//     }
+//     // 2. Upload each file to published/{gameId}/ in S3
+//     const copyPromises = files.map(async (file) => {
+//       const filePath = path.join(srcDir, file);
+//       const destKey = destPrefix + file;
+//       try {
+//         const fileContent = await fsp.readFile(filePath);
+//         await s3.send(
+//           new PutObjectCommand({
+//             Bucket: bucket,
+//             Key: destKey,
+//             Body: fileContent
+//           })
+//         );
+//         console.log(`Uploaded ${filePath} to ${destKey}`);
+//       } catch (err) {
+//         console.log('Upload error:', err);
+//         throw err;
+//       }
+//     });
+//     await Promise.all(copyPromises);
 
-    // 3. Update public/games.json on disk (not S3)
-    const publicDir = path.resolve(__dirname, '../../../public');
-    const gamesJsonPath = path.join(publicDir, 'games.json');
-    let games: any[] = [];
-    if (existsSync(gamesJsonPath)) {
-      const data = await fsp.readFile(gamesJsonPath, 'utf-8');
-      try {
-        games = JSON.parse(data);
-        if (!Array.isArray(games)) games = [];
-      } catch {
-        games = [];
-      }
-    }
-    const info = { author: address, title, id: gameId, date: new Date() };
-    const existingIndex = games.findIndex(
-      (g: any) => typeof g.id === 'string' && g.id.trim() === gameId
-    );
-    if (existingIndex !== -1) {
-      games[existingIndex].updated = new Date();
-      console.log('Updated existing entry with id:', gameId);
-    } else {
-      games.push(info);
-      console.log('Added new entry with id:', gameId);
-    }
-    await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
+//     // 3. Update public/games.json on disk (not S3)
+//     const publicDir = path.resolve(__dirname, '../../../public');
+//     const gamesJsonPath = path.join(publicDir, 'games.json');
+//     let games: any[] = [];
+//     if (existsSync(gamesJsonPath)) {
+//       const data = await fsp.readFile(gamesJsonPath, 'utf-8');
+//       try {
+//         games = JSON.parse(data);
+//         if (!Array.isArray(games)) games = [];
+//       } catch {
+//         games = [];
+//       }
+//     }
+//     const info = { author: address, title, id: gameId, date: new Date() };
+//     const existingIndex = games.findIndex(
+//       (g: any) => typeof g.id === 'string' && g.id.trim() === gameId
+//     );
+//     if (existingIndex !== -1) {
+//       games[existingIndex].updated = new Date();
+//       console.log('Updated existing entry with id:', gameId);
+//     } else {
+//       games.push(info);
+//       console.log('Added new entry with id:', gameId);
+//     }
+//     await fsp.writeFile(gamesJsonPath, JSON.stringify(games, null, 2), 'utf-8');
 
-    return { id: gameId };
-  } catch (error) {
-    console.error('Error publishing game:', error);
-    if (error instanceof Error) {
-      console.error('Stack trace:', error.stack);
-    }
-    reply.code(500).send({
-      error: 'Error publishing game',
-      details: error instanceof Error ? error.message : error
-    });
-  }
-}
+//     return { id: gameId };
+//   } catch (error) {
+//     console.error('Error publishing game:', error);
+//     if (error instanceof Error) {
+//       console.error('Stack trace:', error.stack);
+//     }
+//     reply.code(500).send({
+//       error: 'Error publishing game',
+//       details: error instanceof Error ? error.message : error
+//     });
+//   }
+// }
 
 export const updateGameName = async (gameId: string, newName: string) => {
   try {

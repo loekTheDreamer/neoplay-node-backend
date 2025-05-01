@@ -7,7 +7,7 @@ import { initialPrompt } from '../../prompts/xaiPrompts';
 // (role: 'system' | 'user' | 'assistant', content: string)
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { authMiddleware } from '../../middleware/auth';
-import { addThreadMessage, getThreadMessages } from '../game/gameHelpers';
+import { addThreadMessage } from '../game/gameHelpers';
 type OpenAIChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
