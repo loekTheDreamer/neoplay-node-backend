@@ -45,16 +45,16 @@ interface SaveGameFilesToDB {
 export const createGame = async (userId: string) => {
   try {
     // find at least one game from userid
-    const firstGame = await prisma.gameFile.findFirst({
-      where: {
-        gameId: userId
-      }
-    });
+    // const firstGame = await prisma.gameFile.findFirst({
+    //   where: {
+    //     gameId: userId
+    //   }
+    // });
 
-    console.log('firstGame:', firstGame);
-    if (!firstGame) {
-      return null;
-    }
+    // // console.log('firstGame:', firstGame);
+    // // if (!firstGame) {
+    // //   return null;
+    // // }
 
     const game = await prisma.game.create({
       data: {
@@ -182,7 +182,6 @@ export async function publish({
       reply.code(404).send({ error: 'No files found for this game' });
       return;
     }
-    console.log('fuck you');
     // 2. Upload each file to published/{gameId}/ in S3
     const copyPromises = files.map(async (file) => {
       const filePath = path.join(srcDir, file);
