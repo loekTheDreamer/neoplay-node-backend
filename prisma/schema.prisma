@@ -50,7 +50,6 @@ model Game {
   name          String
   genre         String
   description   String
-  coverImageUrl String
   plays         Int    @default(0)
   tags          String[]
   publisher     User   @relation(fields: [publisherId], references: [id])
@@ -61,6 +60,7 @@ model Game {
   threads       Thread[]
   status        GameStatus @default(DRAFT)
   gameFiles     GameFile[]
+  publishedAt   DateTime?
 }
 model Message {
   id        String   @id @default(uuid())

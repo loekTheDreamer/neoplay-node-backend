@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { registerXaiRoutes } from './src/services/xai/routes.ts';
 import { registerDbRoutes } from './src/services/db/route.ts';
+import { registerPublishRoutes } from './src/services/publish/routes.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -79,6 +80,7 @@ registerDbRoutes(fastify);
 registerAnthropicRoutes(fastify);
 registerGameRoutes(fastify);
 registerXaiRoutes(fastify);
+registerPublishRoutes(fastify);
 
 // Start the server
 const start = async () => {

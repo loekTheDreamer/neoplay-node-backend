@@ -8,7 +8,6 @@ import {
   deleteGame,
   getPublishedGames,
   getThreadById,
-  publish,
   saveCurrentGame,
   updateGameName,
   getLatestGame,
@@ -36,12 +35,6 @@ export type AddThreadRequest = {
 
 export type DeleteGameRequest = {
   address: string;
-};
-
-export type PublishGameRequest = {
-  address: string;
-  title: string;
-  id?: string;
 };
 
 export type Name = {
@@ -235,6 +228,11 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         }
 
         const thread = await getThreadById(id);
+        //TODO
+        // const fileCount = await prisma.gameFile.count({
+        //   where: { gameId: thread?.gameId }
+        // });
+        // const hasAtLeastOneFile = fileCount > 0;
 
         if (!thread) {
           return reply.code(404).send({ error: 'Thread not found' });
@@ -286,38 +284,6 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: (err as Error).message });
     }
   });
-
-  fastify.post(
-    '/publish',
-    {
-      preHandler: authMiddleware
-    },
-    async (request, reply) => {
-      const body = request.body as PublishGameRequest;
-
-      const { address, title, id } = body;
-
-      if (!address) {
-        return reply.code(400).send({
-          error: 'Missing or invalid address in request body'
-        });
-      }
-
-      if (!title) {
-        return reply.code(400).send({
-          error: 'Missing or invalid title in request body'
-        });
-      }
-
-      try {
-        const gameId = await publish({ address, title, id, reply });
-        return reply.code(200).send(gameId);
-        // return reply.send({ success: true });
-      } catch (err) {
-        return reply.code(500).send({ error: (err as Error).message });
-      }
-    }
-  );
 
   fastify.get('/published', async (request, reply) => {
     try {
