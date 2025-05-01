@@ -110,7 +110,11 @@ export function registerGameRoutes(fastify: FastifyInstance) {
           reply
         });
 
-        await updateLocalServerWithGame({ threadId, user, reply });
+        // this is for the first run. we then update the front end
+        // with the threadId so we will always have one after first user
+        if (threadId) {
+          await updateLocalServerWithGame({ threadId, user, reply });
+        }
         // i need to update the server with the game threadId of the active game
         //
 

@@ -541,7 +541,7 @@ export const updateLocalServerWithGame = async ({
   reply
 }: UpdateLocalServerWithGameParams) => {
   console.log('updateLocalServerWithGame...');
-  const { userId, address } = user;
+  const { address } = user;
 
   try {
     // 1. Find the thread and get the gameId
@@ -566,6 +566,8 @@ export const updateLocalServerWithGame = async ({
         updatedAt: true
       }
     });
+
+    console.log('gameFiles:', gameFiles);
     // console.log('gameFiles:', gameFiles[0].filename);
 
     // Remove the folder public/currentGame/{address} and all its contents (Node 20+)
