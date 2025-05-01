@@ -53,6 +53,7 @@ interface CreateGameFilesRequest {
   gameId: string;
 }
 
+// create a new game
 export function registerGameRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/game',
@@ -97,10 +98,10 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         console.log('user.id:', user.id);
         console.log('threadId:', threadId);
         // Check all games for this user to see if any have the threadId
-        const allGames = await prisma.game.findMany({
-          where: { publisherId: user.id },
-          include: { threads: { select: { id: true } } }
-        });
+        // const allGames = await prisma.game.findMany({
+        //   where: { publisherId: user.id },
+        //   include: { threads: { select: { id: true } } }
+        // });
         // console.log(
         //   'All games for user:',
         //   allGames.map((game) => ({
