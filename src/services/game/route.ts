@@ -96,13 +96,13 @@ export function registerGameRoutes(fastify: FastifyInstance) {
           where: { publisherId: user.id },
           include: { threads: { select: { id: true } } }
         });
-        console.log(
-          'All games for user:',
-          allGames.map((game) => ({
-            id: game.id,
-            threadIds: game.threads.map((t) => t.id)
-          }))
-        );
+        // console.log(
+        //   'All games for user:',
+        //   allGames.map((game) => ({
+        //     id: game.id,
+        //     threadIds: game.threads.map((t) => t.id)
+        //   }))
+        // );
 
         const { latestGame, gameList } = await getLatestGame({
           threadId,

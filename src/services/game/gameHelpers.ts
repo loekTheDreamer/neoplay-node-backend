@@ -389,6 +389,7 @@ export const upsertGameFile = async ({
   gameFiles
 }: SaveGameFilesToDB) => {
   try {
+    console.log('upsertGameFile... gameId: ', gameId);
     const upsertedFiles = await Promise.all(
       gameFiles.map(
         async (file: { filename: string; type: string; code: string }) => {
@@ -499,7 +500,7 @@ export const getLatestGame = async ({
     where: {
       publisherId: userId
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       name: true,
@@ -570,6 +571,10 @@ export const updateLocalServerWithGame = async ({
     console.log('gameFiles:', gameFiles);
     // console.log('gameFiles:', gameFiles[0].filename);
 
+    if (gameFiles.length === 0) {
+      console.log('no game files');
+      return;
+    }
     // Remove the folder public/currentGame/{address} and all its contents (Node 20+)
     const folderPath = path.join('public', 'currentGame', address);
     try {
