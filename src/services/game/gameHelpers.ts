@@ -44,6 +44,18 @@ interface SaveGameFilesToDB {
 
 export const createGame = async (userId: string) => {
   try {
+    // find at least one game from userid
+    const firstGame = await prisma.gameFile.findFirst({
+      where: {
+        gameId: userId
+      }
+    });
+
+    console.log('firstGame:', firstGame);
+    if (!firstGame) {
+      return null;
+    }
+
     const game = await prisma.game.create({
       data: {
         name: 'Untitled Game',
