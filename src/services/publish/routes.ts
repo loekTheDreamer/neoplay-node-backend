@@ -8,7 +8,7 @@ import { initialPrompt } from '../../prompts/xaiPrompts';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { authMiddleware } from '../../middleware/auth';
 
-import { publish } from './publishHelpers';
+import { getPublishedGames, publish } from './publishHelpers';
 import { JwtPayload } from 'jsonwebtoken';
 
 type PublishGameRequest = {
@@ -61,6 +61,29 @@ export function registerPublishRoutes(fastify: FastifyInstance) {
           id
         });
         return reply.code(200).send({ published: true });
+        // return reply.send({ success: true });
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+    }
+  );
+  fastify.get(
+    '/publish',
+    {
+      preHandler: authMiddleware
+    },
+    async (request, reply) => {
+      console.log('ddude we are here?');
+      const user = (request as any).user as JwtPayload;
+      console.log('user:', user);
+      if (!user || !user.id) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+
+      try {
+        const publishedGames = await getPublishedGames();
+
+        return reply.code(200).send({ publishedGames });
         // return reply.send({ success: true });
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });

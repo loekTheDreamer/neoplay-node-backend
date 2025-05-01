@@ -31,6 +31,23 @@ interface PublishGameRequest {
   reply: FastifyReply;
 }
 
+const contentType = (filename: string) => {
+  console.log('filename content:', filename);
+  if (filename.endsWith('.html')) {
+    return 'text/html';
+  }
+  if (filename.endsWith('.js')) {
+    return 'application/javascript';
+  }
+  if (filename.endsWith('.css')) {
+    return 'text/css';
+  }
+  if (filename.endsWith('.svg')) {
+    return 'image/svg+xml';
+  }
+  return 'application/octet-stream';
+};
+
 export async function publish({
   address,
   name,
@@ -78,7 +95,8 @@ export async function publish({
           new PutObjectCommand({
             Bucket: bucket,
             Key: destKey,
-            Body: fileContent
+            Body: fileContent,
+            ContentType: contentType(file)
           })
         );
         console.log(`Uploaded ${filePath} to ${destKey}`);
@@ -151,3 +169,27 @@ export async function publish({
     });
   }
 }
+
+export const getPublishedGames = async () => {
+  try {
+    const publishedGames = await prisma.game.findMany({
+      where: {
+        status: 'PUBLISHED'
+      },
+      orderBy: {
+        publishedAt: 'desc'
+      },
+      include: {
+        publisher: {
+          select: {
+            walletAddress: true
+          }
+        }
+      }
+    });
+    return publishedGames;
+  } catch (error) {
+    console.error('Error getting published games:', error);
+    throw error;
+  }
+};

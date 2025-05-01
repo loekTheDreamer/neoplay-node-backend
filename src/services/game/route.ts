@@ -285,15 +285,15 @@ export function registerGameRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/published', async (request, reply) => {
-    try {
-      const games = await getPublishedGames();
-      console.log('Games to send:', games);
+  // fastify.get('/published', async (request, reply) => {
+  //   try {
+  //     const games = await getPublishedGames();
+  //     console.log('Games to send:', games);
 
-      return reply.code(200).send(games);
-    } catch (err) {
-      console.log('error fetching published games:', err);
-      return reply.code(500).send({ error: (err as Error).message });
-    }
-  });
+  //     return reply.code(200).send(games);
+  //   } catch (err) {
+  //     console.log('error fetching published games:', err);
+  //     return reply.code(500).send({ error: (err as Error).message });
+  //   }
+  // });
 }
