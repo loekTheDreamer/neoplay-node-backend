@@ -66,6 +66,11 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       }
       try {
         const gameWithThread = await createGame(user.id);
+        if (!gameWithThread) {
+          // just returning the fact that there is no new game project created becasue the user
+          // has not made any games yet.
+          return reply.code(200).send({ success: false });
+        }
         reply.code(201).send(gameWithThread);
       } catch (error) {
         reply.code(500).send({ error: 'Failed to create game' });
