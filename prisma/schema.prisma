@@ -31,6 +31,7 @@ model User {
   createdAt     DateTime @default(now())
   games         Game[]
   likes         Like[]
+  plays         Play[] // <-- Added for Play relation
   sentMessages  Message[] @relation("UserSentMessages")
   threads       Thread[]
 }
@@ -45,6 +46,16 @@ model Like {
   @@unique([userId, gameId]) 
 }
 
+model Play {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  game      Game     @relation(fields: [gameId], references: [id])
+  gameId    String
+  playedAt  DateTime @default(now())
+  @@unique([userId, gameId])
+}
+
 model Game {
   id            String  @id @default(uuid())
   name          String
@@ -57,6 +68,7 @@ model Game {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   likedBy       Like[]
+  playedBy      Play[] // <-- Added for Play relation
   threads       Thread[]
   status        GameStatus @default(DRAFT)
   gameFiles     GameFile[]

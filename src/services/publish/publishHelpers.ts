@@ -72,10 +72,26 @@ export async function publish({
     const destPrefix = `published/${gameId}/`;
 
     // 1. List all files under public/currentGames/{address}/
+    // Recursively list all files under srcDir
+    async function walkDir(dir: string, dirPrefix = ''): Promise<string[]> {
+      const dirents = await fsp.readdir(dir, { withFileTypes: true });
+      const files = await Promise.all(
+        dirents.map(async (dirent) => {
+          const res = path.join(dir, dirent.name);
+          const relPath = path.join(dirPrefix, dirent.name);
+          if (dirent.isDirectory()) {
+            return walkDir(res, relPath);
+          } else {
+            return relPath;
+          }
+        })
+      );
+      return Array.prototype.concat(...files);
+    }
+
     let files: string[] = [];
-    console.log('here:', files);
     try {
-      files = await fsp.readdir(srcDir);
+      files = await walkDir(srcDir);
       console.log('files:', files);
     } catch (err) {
       reply.code(404).send({ error: 'No files found for this game' });
@@ -170,7 +186,7 @@ export async function publish({
   }
 }
 
-export const getPublishedGames = async () => {
+export const getPublishedGames = async (userId: string) => {
   try {
     const publishedGames = await prisma.game.findMany({
       where: {
@@ -184,12 +200,73 @@ export const getPublishedGames = async () => {
           select: {
             walletAddress: true
           }
+        },
+        _count: {
+          select: { likedBy: true }
         }
       }
     });
-    return publishedGames;
+    const gameIds = publishedGames.map((game) => game.id);
+    // Get all likes for this user for these games
+    const userLikes = await prisma.like.findMany({
+      where: {
+        userId,
+        gameId: { in: gameIds }
+      },
+      select: { gameId: true }
+    });
+    const likedGameIds = new Set(userLikes.map((like) => like.gameId));
+
+    // Get all plays for this user for these games
+    const userPlays = await prisma.play.findMany({
+      where: {
+        userId,
+        gameId: { in: gameIds }
+      },
+      select: { gameId: true }
+    });
+    const playedGameIds = new Set(userPlays.map((play) => play.gameId));
+
+    // Add likedByMe and playedByMe property
+    return publishedGames.map((game) => ({
+      ...game,
+      likedByMe: likedGameIds.has(game.id),
+      playedByMe: playedGameIds.has(game.id)
+    }));
   } catch (error) {
     console.error('Error getting published games:', error);
     throw error;
   }
 };
+
+export async function likeGame(userId: string, gameId: string): Promise<void> {
+  // Will throw if already exists due to @@unique([userId, gameId])
+  await prisma.like.create({
+    data: {
+      userId,
+      gameId
+    }
+  });
+}
+
+export async function playGame(gameId: string): Promise<void> {
+  // Increment the play count for the game by 1
+  await prisma.game.update({
+    where: { id: gameId },
+    data: { plays: { increment: 1 } }
+  });
+}
+
+export async function addPlayRecord(userId: string, gameId: string): Promise<void> {
+  // Create a Play record if one does not already exist for this user/game
+  await prisma.play.upsert({
+    where: {
+      userId_gameId: {
+        userId,
+        gameId
+      }
+    },
+    update: {}, // do nothing if exists
+    create: { userId, gameId }
+  });
+}
