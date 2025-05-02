@@ -98,7 +98,7 @@ export function registerPublishRoutes(fastify: FastifyInstance) {
   );
 
   fastify.post(
-    '/like',
+    '/publish/like',
     {
       preHandler: authMiddleware
     },
@@ -115,6 +115,7 @@ export function registerPublishRoutes(fastify: FastifyInstance) {
       try {
         // Call the helper to like the game
         await likeGame(user.id, gameId);
+        console.log('Liked game:', gameId);
         return reply.code(200).send({ success: true });
       } catch (err: any) {
         if (err.code === 'P2002') {
