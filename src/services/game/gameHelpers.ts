@@ -350,7 +350,7 @@ export const addThread = async (gameId: string, userId: string) => {
 
     await addThreadMessage(id, { role: 'assistant', content: codeBlocks });
 
-    return { id, codeBlocks };
+    return { id, codeBlocks, files };
     // // Check if any thread has messages
     // const threadWithMessages = threads.find(
     //   (thread) => thread.messages.length > 0
@@ -610,7 +610,7 @@ export const updateLocalServerWithGame = async ({
     }
 
     // You can return or process gameFiles as needed
-    // return gameFiles;
+    return gameFiles;
   } catch (error) {
     console.error('Error in updateLocalServerWithGame:', error);
     throw error;
@@ -641,3 +641,17 @@ export async function deleteThread(threadId: string, userId: string) {
     throw error;
   }
 }
+
+export const getGameFiles = async (gameId: string) => {
+  try {
+    const files = await prisma.gameFile.findMany({
+      where: { gameId },
+      select: { filename: true, type: true, code: true }
+    });
+    console.log('getGameFiles files:', files);
+    return files;
+  } catch (error) {
+    console.log('error getting game files:', error);
+    throw error;
+  }
+};

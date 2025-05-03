@@ -12,7 +12,8 @@ import {
   updateGameName,
   getLatestGame,
   updateLocalServerWithGame,
-  deleteThread
+  deleteThread,
+  getGameFiles
 } from './gameHelpers';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
@@ -207,9 +208,11 @@ export function registerGameRoutes(fastify: FastifyInstance) {
           return reply.code(400).send({ error: 'Missing gameId' });
         }
         console.log('gameId:', gameId);
-        const { id, codeBlocks } = await addThread(gameId, user.id);
+        const { id, codeBlocks, files } = await addThread(gameId, user.id);
 
-        return reply.code(200).send({ success: true, id: id, codeBlocks });
+        return reply
+          .code(200)
+          .send({ success: true, id: id, codeBlocks, files });
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }
@@ -228,11 +231,17 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         }
 
         const id = (request.query as any).id;
+        const gameId = (request.query as any).gameId;
+
         if (!id) {
           return reply.code(400).send({ error: 'Missing threadId' });
         }
 
         const thread = await getThreadById(id);
+        // const files = await getGameFiles(id);
+
+        // console.log('all files: ', files);
+
         //TODO
         // const fileCount = await prisma.gameFile.count({
         //   where: { gameId: thread?.gameId }
@@ -242,8 +251,12 @@ export function registerGameRoutes(fastify: FastifyInstance) {
         if (!thread) {
           return reply.code(404).send({ error: 'Thread not found' });
         }
-        await updateLocalServerWithGame({ threadId: id, user: user, reply });
-        return reply.code(200).send(thread);
+        const allGameFiles = await updateLocalServerWithGame({
+          threadId: id,
+          user: user,
+          reply
+        });
+        return reply.code(200).send({ thread, allGameFiles });
       } catch (err) {
         return reply.code(500).send({ error: (err as Error).message });
       }
