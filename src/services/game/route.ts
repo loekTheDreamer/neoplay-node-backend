@@ -11,7 +11,8 @@ import {
   saveCurrentGame,
   updateGameName,
   getLatestGame,
-  updateLocalServerWithGame
+  updateLocalServerWithGame,
+  deleteThread
 } from './gameHelpers';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
@@ -31,6 +32,10 @@ export type SaveGameRequest = {
 
 export type AddThreadRequest = {
   gameId: string;
+};
+
+export type DeleteThreadRequest = {
+  threadId: string;
 };
 
 export type DeleteGameRequest = {
@@ -284,6 +289,29 @@ export function registerGameRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: (err as Error).message });
     }
   });
+
+  fastify.delete(
+    '/game/thread',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      console.log('delete thread...');
+      try {
+        const user = (request as any).user as JwtPayload;
+        const { threadId } = request.body as DeleteThreadRequest;
+        const thread = await deleteThread(threadId, user.id);
+
+        return reply.code(200).send({ success: true, id: thread.id });
+      } catch (error: any) {
+        if (error.message === 'Forbidden') {
+          return reply.code(403).send({ error: 'Forbidden' });
+        }
+        if (error.message === 'Thread not found') {
+          return reply.code(404).send({ error: 'Not found' });
+        }
+        return reply.code(500).send({ error: error.message });
+      }
+    }
+  );
 
   // fastify.get('/published', async (request, reply) => {
   //   try {
