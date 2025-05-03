@@ -76,7 +76,7 @@ model Game {
 }
 model Message {
   id        String   @id @default(uuid())
-  thread    Thread   @relation(fields: [threadId], references: [id])
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
   threadId  String
   sender    User?     @relation("UserSentMessages", fields: [senderId], references: [id])
   senderId  String?

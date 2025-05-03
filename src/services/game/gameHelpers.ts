@@ -616,3 +616,28 @@ export const updateLocalServerWithGame = async ({
     throw error;
   }
 };
+
+export async function deleteThread(threadId: string, userId: string) {
+  console.log('threadId: ', threadId);
+  console.log('userId: ', userId);
+  try {
+    const thread = await prisma.thread.findUnique({ where: { id: threadId } });
+    if (!thread) {
+      console.log('Thread not found');
+      throw new Error('Thread not found');
+    }
+    console.log('thread:', thread);
+    if (thread.userId !== userId) {
+      console.log('Forbidden');
+      throw new Error('Forbidden');
+    }
+    // First, delete all messages associated with this thread
+    // await prisma.message.deleteMany({ where: { threadId: threadId } });
+    // Then, delete the thread itself
+    await prisma.thread.delete({ where: { id: threadId } });
+    return thread;
+  } catch (error) {
+    console.log('error deleting thread:', error);
+    throw error;
+  }
+}
