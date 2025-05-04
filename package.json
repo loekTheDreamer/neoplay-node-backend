@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "start": "node dist/server.js",
     "dev": "nodemon --exec tsx server.ts",
     "migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"
