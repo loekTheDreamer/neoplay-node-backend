@@ -1,13 +1,13 @@
 import OpenAI from 'openai';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { config } from '../../config/env';
-import { initialPrompt } from '../../prompts/xaiPrompts';
+import { config } from '../../config/env.js';
+import { initialPrompt } from '../../prompts/xaiPrompts.js';
 
 // Inline type for OpenAI ChatCompletionMessageParam
 // (role: 'system' | 'user' | 'assistant', content: string)
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { authMiddleware } from '../../middleware/auth';
-import { addThreadMessage } from '../game/gameHelpers';
+import { authMiddleware } from '../../middleware/auth.js';
+import { addThreadMessage } from '../game/gameHelpers.js';
 type OpenAIChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;

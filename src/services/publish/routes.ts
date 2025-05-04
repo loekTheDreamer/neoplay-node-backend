@@ -1,12 +1,12 @@
 import OpenAI from 'openai';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { config } from '../../config/env';
-import { initialPrompt } from '../../prompts/xaiPrompts';
+import { config } from '../../config/env.js';
+import { initialPrompt } from '../../prompts/xaiPrompts.js';
 
 // Inline type for OpenAI ChatCompletionMessageParam
 // (role: 'system' | 'user' | 'assistant', content: string)
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { authMiddleware } from '../../middleware/auth';
+import { authMiddleware } from '../../middleware/auth.js';
 
 import {
   getPublishedGames,
@@ -14,7 +14,7 @@ import {
   likeGame,
   playGame,
   addPlayRecord
-} from './publishHelpers';
+} from './publishHelpers.js';
 import { JwtPayload } from 'jsonwebtoken';
 
 type PublishGameRequest = {
