@@ -117,13 +117,21 @@ export function registerGameRoutes(fastify: FastifyInstance) {
 
         // this is for the first run. we then update the front end
         // with the threadId so we will always have one after first user
+        let files: GameFiles[] = [];
         if (threadId) {
-          await updateLocalServerWithGame({ threadId, user, reply });
+          const result = await updateLocalServerWithGame({
+            threadId,
+            user,
+            reply
+          });
+          if (result) {
+            files = result;
+          }
         }
         // i need to update the server with the game threadId of the active game
         //
 
-        reply.code(200).send({ latestGame, gameList });
+        reply.code(200).send({ latestGame, gameList, files });
       } catch (error) {
         reply.code(500).send({ error: 'Failed to fetch games' });
       }

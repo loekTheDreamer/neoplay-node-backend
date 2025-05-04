@@ -601,7 +601,7 @@ export const updateLocalServerWithGame = async ({
     }
 
     if (gameFiles.length === 0) {
-      return;
+      return null;
     }
 
     await saveCurrentGame({ gameFiles, address, reply });
