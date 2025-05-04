@@ -2,7 +2,11 @@ import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaClient } from '@prisma/client';
 import { verifyMessage } from 'ethers';
-import { signJwt, signRefreshToken, verifyRefreshToken } from '../../utils/jwt.js';
+import {
+  signJwt,
+  signRefreshToken,
+  verifyRefreshToken
+} from '../../utils/jwt.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import prisma from './prisma.js'; // adjust the path as needed
 import { createGame } from '../game/gameHelpers.js';
@@ -16,20 +20,25 @@ export function registerDbRoutes(fastify: FastifyInstance) {
     console.log('/auth/nonce');
     const { address } = request.body as { address: string };
     const nonce = uuidv4();
-    let user = await prisma.user.findUnique({
-      where: { walletAddress: address }
-    });
-    if (user) {
-      console.log('User found, updating nonce');
-      await prisma.user.update({
-        where: { walletAddress: address },
-        data: { nonce }
+    try {
+      let user = await prisma.user.findUnique({
+        where: { walletAddress: address }
       });
-    } else {
-      console.log('User not found, creating new user');
-      await prisma.user.create({ data: { walletAddress: address, nonce } });
+      if (user) {
+        console.log('User found, updating nonce');
+        await prisma.user.update({
+          where: { walletAddress: address },
+          data: { nonce }
+        });
+      } else {
+        console.log('User not found, creating new user');
+        await prisma.user.create({ data: { walletAddress: address, nonce } });
+      }
+      reply.send({ nonce, message: `Sign this message to login: ${nonce}` });
+    } catch (error) {
+      console.log('error with nonce endpoint:', error);
+      reply.code(500).send({ error: 'Failed to create user' });
     }
-    reply.send({ nonce, message: `Sign this message to login: ${nonce}` });
   });
 
   fastify.post('/auth/login', async (request, reply) => {
