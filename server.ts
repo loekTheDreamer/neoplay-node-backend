@@ -6,17 +6,17 @@ import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 
-import { config } from './src/config/env';
-import { registerAnthropicRoutes } from './src/services/anthropic/routes';
+import { config } from './src/config/env.js';
+import { registerAnthropicRoutes } from './src/services/anthropic/routes.js';
 
 import { FastifySSEPlugin } from 'fastify-sse-v2';
-import { registerGameRoutes } from './src/services/game/route';
+import { registerGameRoutes } from './src/services/game/route.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { registerXaiRoutes } from './src/services/xai/routes';
-import { registerDbRoutes } from './src/services/db/route';
-import { registerPublishRoutes } from './src/services/publish/routes';
+import { registerXaiRoutes } from './src/services/xai/routes.js';
+import { registerDbRoutes } from './src/services/db/route.js';
+import { registerPublishRoutes } from './src/services/publish/routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

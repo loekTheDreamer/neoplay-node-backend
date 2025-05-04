@@ -1,4 +1,4 @@
-import { GameFiles } from '../services/game/route';
+import { GameFiles } from '../services/game/route.js';
 
 export function filesToCodeblocks(files: GameFiles[]) {
   const langMap = {

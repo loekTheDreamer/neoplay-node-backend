@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { config } from '../../config/env';
+import { config } from '../../config/env.js';
 // import { v4 as uuidv4 } from 'uuid';
 
 const client = new Anthropic({

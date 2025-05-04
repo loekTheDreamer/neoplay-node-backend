@@ -1,11 +1,11 @@
 import { FastifyReply } from 'fastify';
-import { config } from '../../config/env';
+import { config } from '../../config/env.js';
 import * as path from 'path';
 import { promises as fsp, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
-import prisma from '../db/prisma';
+import prisma from '../db/prisma.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

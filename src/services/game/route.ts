@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { config } from '../../config/env';
-import prisma from '../db/prisma';
+import { config } from '../../config/env.js';
+import prisma from '../db/prisma.js';
 import {
   addThread,
   createGame,
@@ -14,11 +14,11 @@ import {
   updateLocalServerWithGame,
   deleteThread,
   getGameFiles
-} from './gameHelpers';
+} from './gameHelpers.js';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
-import { authMiddleware } from '../../middleware/auth';
-import { JwtPayload } from '../../utils/jwt';
+import { authMiddleware } from '../../middleware/auth.js';
+import { JwtPayload } from '../../utils/jwt.js';
 
 export interface GameFiles {
   filename: string;

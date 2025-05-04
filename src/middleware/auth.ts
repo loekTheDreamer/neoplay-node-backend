@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { verifyJwt, JwtPayload } from '../utils/jwt';
+import { verifyJwt, JwtPayload } from '../utils/jwt.js';
 
 export async function authMiddleware(
   request: FastifyRequest,

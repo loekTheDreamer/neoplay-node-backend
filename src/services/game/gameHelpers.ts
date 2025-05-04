@@ -1,15 +1,15 @@
 import * as path from 'path';
 import { promises as fsp, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { GameFiles } from './route';
+import { GameFiles } from './route.js';
 import { FastifyReply } from 'fastify/types/reply';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { config } from '../../config/env';
-import prisma from '../db/prisma';
+import { config } from '../../config/env.js';
+import prisma from '../db/prisma.js';
 import { ChatCompletionMessageParam } from 'openai/resources.mjs';
 import { JwtPayload } from 'jsonwebtoken';
-import { filesToCodeblocks } from '../../utils/codeBlocks';
+import { filesToCodeblocks } from '../../utils/codeBlocks.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

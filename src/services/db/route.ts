@@ -2,10 +2,10 @@ import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaClient } from '@prisma/client';
 import { verifyMessage } from 'ethers';
-import { signJwt, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
-import { authMiddleware } from '../../middleware/auth';
-import prisma from './prisma'; // adjust the path as needed
-import { createGame } from '../game/gameHelpers';
+import { signJwt, signRefreshToken, verifyRefreshToken } from '../../utils/jwt.js';
+import { authMiddleware } from '../../middleware/auth.js';
+import prisma from './prisma.js'; // adjust the path as needed
+import { createGame } from '../game/gameHelpers.js';
 
 interface User {
   address: string;
