@@ -11,7 +11,7 @@ Your task is to create this web app in multiple files. Follow these instructions
    
    - In the <head> section:
      a. Include a <title> tag with an appropriate game title.
-     b. Add a <script> tag to include Tailwind via CDN.
+     b. Add a <script> tag to include Tailwind CSS via CDN.
      c. Add any necessary meta tags for proper rendering on different devices.
 
    - In the <body> section:
@@ -23,7 +23,8 @@ Your task is to create this web app in multiple files. Follow these instructions
 
    - After the basic HTML structure, include:
     a. <script> tags for your JavaScript code. where you will place your external created javascript files,
-    b. external <svg> files, if the game requires it.
+    b. external <style> files for your CSS code, if the game requires it.
+    c. external <svg> files, if the game requires it.
 
    - use emojies where applicable.
 
@@ -46,8 +47,8 @@ Your task is to create this web app in multiple files. Follow these instructions
       g. updateScore.js: Function to update the score.
       h. gameOver.js: Function to handle game over state.
       i. Additional files as needed (e.g., setupControls.js, checkBoundary.js, spawnEffects.js).
-      j. do the same break up with svg files
-   - make sure to create external files that are imported in the <svg> sections of the html.
+      j. do the same break up with svg and css files
+   - make sure to create external files that are imported in the <style> and <svg> sections of the html.
 
 4. Error Handling:
    - Add JavaScript to display error messages
@@ -85,7 +86,7 @@ Your task is to create this web app in multiple files. Follow these instructions
    - Final score display
    - "Restart" button (activated by spacebar)
 
-10. Style the game using Tailwind. Include the Tailwind CDN in the head of your HTML. Use Tailwind classes to create an aesthetic design for:
+10. Style the game using Tailwind CSS. Include the Tailwind CDN in the head of your HTML. Use Tailwind classes to create an aesthetic design for:
    - The game container
    - Start and game over screens
    - Game objects (if applicable)
@@ -106,7 +107,7 @@ Your task is to create this web app in multiple files. Follow these instructions
     - Transitioning to the game over screen upon player death or game completion
     - Ability to restart from the game over screen using the spacebar
 
-15. Provide the complete files, including all HTML, SVG and JavaScript, within <code> tags. Ensure that the file is fully functional and can be run as-is in a web browser.
+15. Provide the complete files, including all HTML, SVG, CSS (via Tailwind classes), and JavaScript, within <code> tags. Ensure that the file is fully functional and can be run as-is in a web browser.
    - Return each file in its own code block with the exact filename header:
      \`\`\`html
      <!-- index.html -->
@@ -156,6 +157,11 @@ Here are the detailed steps:
    [entire html content with all changes]
     \`\`\`
 
+    \`\`\`css
+    /* filename.css */
+    [entire css content with all changes]
+    \`\`\`
+
     \`\`\`javascript
     // filename.js
     [entire javascript content with all changes]
@@ -168,9 +174,9 @@ Here are the detailed steps:
 
 5.  Filename Comments are ESSENTIAL: Never omit the filename comment (e.g., \`// filename.js\`) at the start of each code block. This is crucial for the platform.
 
-6.  When creating new game objects or modifying existing ones, strictly adhere to the established SVG and JavaScript patterns found in the original game code provided previously.
+6.  When creating new game objects or modifying existing ones, strictly adhere to the established SVG, CSS (including Tailwind if used), and JavaScript patterns found in the original game code provided previously.
 
-7.  Never introduce or reference external resources (images, JS libraries) that were not part of the original game.
+7.  Never introduce or reference external resources (images, CSS files, JS libraries) that were not part of the original game.
 
 8.  If the user requests the creation of a new file, create its complete content and include it in the response using the specified format (including the filename comment).
 
@@ -202,8 +208,9 @@ Here are the detailed steps:
    - Split game logic into multiple small, single-purpose files.
    - Each file should contain one function or a small, cohesive group of related functions.
    - Organize files by functionality — like starting the game, handling player movement, spawning objects, detecting collisions, updating scores, managing game states, etc.
-   - Apply the same modular structure to your SVG files.
+   - Apply the same modular structure to your SVG and CSS files:
    - Separate individual SVG assets or group them by purpose.
+   - Break up CSS into focused files based on screen layouts, animations, UI elements, or themes.
    - Keep everything clean, modular, and easy to manage.
 
 15. If restarting from scratch please adhere to the same structure as the orignal game. always make multiple files with functions.
