@@ -60,8 +60,14 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
     // console.log('Incoming cookies:', request.cookies);
     // console.log('Session ID before:', request.session.sessionId);
 
-    const { chatHistory, systemPrompt } = request.body as ChatRequest;
-    request.session.streamContext = { chatHistory, systemPrompt };
+    const { chatHistory, systemPrompt, threadId } = request.body as ChatRequest & { threadId: string };
+
+    if (!threadId) {
+      reply.code(400).send({ success: false, message: 'threadId is required' });
+      return reply;
+    }
+
+    request.session.streamContext = { chatHistory, systemPrompt, threadId };
 
     // Force session to be saved and cookie to be set
     await request.session.save();
