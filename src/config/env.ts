@@ -8,6 +8,7 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET,
   xaiApiKey: process.env.XAI_API_KEY,
   cors: [
+    'https://neoplay-node-backend-telt0.kinsta.app/auth/nonce',
     'http://localhost:8080',
     'http://localhost:8081',
     'http://localhost:5173',
