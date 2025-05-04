@@ -77,11 +77,17 @@ fastify.register(fastifyWs);
 
 // Register routes
 registerDbRoutes(fastify);
-registerAnthropicRoutes(fastify);
+// registerAnthropicRoutes(fastify);
 registerGameRoutes(fastify);
 registerXaiRoutes(fastify);
 registerPublishRoutes(fastify);
 
+if (process.env.NODE_ENV === 'production') {
+  console.log = function () {};
+  console.debug = function () {};
+  console.info = function () {};
+  // Keep console.error and console.warn active for critical issues
+}
 // Start the server
 const start = async () => {
   try {
