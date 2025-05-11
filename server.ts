@@ -53,6 +53,7 @@ declare module 'fastify' {
       chatHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
       systemPrompt?: string;
       threadId: string;
+      selectedAgent: string;
     };
     // Add other session properties if needed
   }
