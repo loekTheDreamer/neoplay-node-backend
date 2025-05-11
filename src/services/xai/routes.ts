@@ -49,6 +49,8 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const user = (request as any).user;
       console.log('user:', user);
+      console.log('User-Agent:', request.headers['user-agent']);
+      console.log('Cookies:', request.cookies);
       if (!user || !user.id) {
         return reply.code(401).send({ error: 'Unauthorized' });
       }
@@ -59,10 +61,15 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       // Force session to be saved and cookie to be set
       await request.session.save();
 
-      // Log headers after setting the response
-      reply.code(200).send({ success: true, message: 'Chat context ready' });
+      console.log(
+        `Session ID after save for setup: ${request.session.sessionId}`
+      );
+      console.log('Session cookie set:', request.session.cookie);
 
-      return reply; // Ensure reply is returned
+      return reply.code(200).send({
+        success: true,
+        sessionId: request.session.sessionId
+      });
     }
   );
 
@@ -71,27 +78,28 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
     '/xai-stream',
     // { preHandler: authMiddleware },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // const user = (request as any).user;
-      // console.log('user:', user);
-      // if (!user || !user.id) {
-      //   return reply.code(401).send({ error: 'Unauthorized' });
-      // }
-      // --- Retrieve the context from session ---
-      const context = request.session.streamContext;
+      console.log('Streaming request received');
+      console.log('User-Agent:', request.headers['user-agent']);
+      console.log('Cookies:', request.cookies);
+      console.log(
+        `Session ID for streaming request: ${request.session.sessionId}`
+      );
+      console.log(
+        'streamContext:',
+        request.session.streamContext ? 'Present' : 'Missing'
+      );
 
-      if (!context) {
-        console.warn(
-          // Use warn level for expected-but-problematic scenarios
+      if (!request.session.streamContext) {
+        console.error(
           `Stream context not found in session: ${request.session.sessionId}. Ensure /setup-chat-context was called and the session cookie was sent.`
         );
-        // **** MODIFICATION START ****
-        // Use standard Fastify reply for the error response.
-        // This allows CORS headers (and other hooks) to be applied correctly.
         return reply.code(400).send({
-          error:
-            'Bad Request: Chat context not found in session. Please setup first.'
+          error: 'Stream context not found. Ensure setup was called.'
         });
       }
+
+      // --- Retrieve the context from session ---
+      const context = request.session.streamContext;
 
       // --- IMPORTANT: Clear context *after* retrieval ---
       // Prevents reusing old context if client reconnects or calls /stream again erroneously
