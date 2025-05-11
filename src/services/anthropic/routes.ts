@@ -13,6 +13,7 @@ interface ChatRequest {
     content: string;
   }>;
   systemPrompt?: string;
+  selectedAgent: string;
 }
 
 // let model = 'claude-3-7-sonnet-20250219';
@@ -60,14 +61,20 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
     // console.log('Incoming cookies:', request.cookies);
     // console.log('Session ID before:', request.session.sessionId);
 
-    const { chatHistory, systemPrompt, threadId } = request.body as ChatRequest & { threadId: string };
+    const { chatHistory, systemPrompt, threadId, selectedAgent } =
+      request.body as ChatRequest & { threadId: string };
 
     if (!threadId) {
       reply.code(400).send({ success: false, message: 'threadId is required' });
       return reply;
     }
 
-    request.session.streamContext = { chatHistory, systemPrompt, threadId };
+    request.session.streamContext = {
+      chatHistory,
+      systemPrompt,
+      threadId,
+      selectedAgent
+    };
 
     // Force session to be saved and cookie to be set
     await request.session.save();
@@ -80,105 +87,6 @@ export function registerAnthropicRoutes(fastify: FastifyInstance) {
     // console.log('Response headers:', reply.getHeaders());
     return reply; // Ensure reply is returned
   });
-
-  // fastify.post(
-  //   '/setup-chat-context',
-  //   (request: FastifyRequest<{ Body: ChatRequest }>, reply: FastifyReply) => {
-  //     console.log('Incoming cookies:', request.cookies);
-  //     console.log('Session ID before:', request.session.sessionId);
-  //     request.session.streamContext = {
-  //       chatHistory: request.body.chatHistory,
-  //       systemPrompt: request.body.systemPrompt
-  //     };
-  //     console.log('Session ID after:', request.session.sessionId);
-  //     reply.setCookie('session', request.session.sessionId, {
-  //       // Force manual cookie for testing
-  //       secure: true,
-  //       httpOnly: true,
-  //       sameSite: 'none',
-  //       maxAge: 60 * 60 * 1000,
-  //       path: '/'
-  //     });
-  //     console.log('Response headers:', reply.getHeaders());
-  //     reply.code(200).send({ success: true, message: 'Chat context ready' });
-  //   }
-  // );
-  // === Setup Endpoint (POST) - Stores context in session ===
-  // fastify.post(
-  //   '/setup-chat-context',
-  //   // Removed async from route handler if not using await inside *before* replying
-  //   (request: FastifyRequest<{ Body: ChatRequest }>, reply: FastifyReply) => {
-  //     console.log('/setup-chat-context request received...');
-
-  //     console.log('Cookies:', request.cookies);
-  //     console.log('Session ID:', request.session.sessionId);
-
-  //     // --- DEBUGGING START ---
-  //     console.log('Session object available:', !!request.session); // Should be true
-  //     console.log('Session ID at start:', request.session?.sessionId); // Log the initial ID (might be new)
-  //     if (!request.session) {
-  //       console.error('CRITICAL: request.session is NOT defined!');
-  //       // If this happens, session middleware failed entirely. Check registration order/secret.
-  //       return reply
-  //         .code(500)
-  //         .send({ error: 'Internal server error: Session unavailable' });
-  //     }
-  //     // --- DEBUGGING END ---
-
-  //     try {
-  //       const { chatHistory, systemPrompt } = request.body;
-
-  //       if (
-  //         !chatHistory ||
-  //         !Array.isArray(chatHistory) ||
-  //         chatHistory.length === 0
-  //       ) {
-  //         // Added check for array type as well
-  //         return reply
-  //           .code(400)
-  //           .send({ error: 'chatHistory (non-empty array) is required' });
-  //         // Use 'return reply...' to ensure execution stops
-  //       }
-
-  //       // Store context directly in the session
-  //       // Ensure the structure matches your Session interface declaration
-  //       request.session.streamContext = {
-  //         chatHistory,
-  //         systemPrompt // Will be undefined if not provided, which is fine
-  //       };
-
-  //       // --- DEBUGGING START ---
-  //       console.log(
-  //         'Session modified. streamContext:',
-  //         request.session.streamContext
-  //       );
-  //       console.log(
-  //         `Session ID *before* sending reply: ${request.session.sessionId}`
-  //       );
-  //       // --- DEBUGGING END ---
-
-  //       // @fastify/session handles saving automatically on reply by default
-  //       console.log(
-  //         `Stored context in session ID: ${request.session.sessionId}`
-  //       );
-  //       // No need to await anything here unless session store requires explicit save
-  //       // and you configured it that way. Default memory store or basic setups don't.
-  //       // Reply - @fastify/session should add Set-Cookie header here automatically
-  //       reply.code(200).send({
-  //         success: true,
-  //         message: 'Chat context ready for streaming.'
-  //       });
-  //     } catch (error: any) {
-  //       console.error('Error in /setup-chat-context:', error);
-  //       request.log.error(error); // Use Fastify logger
-  //       // Avoid sending detailed internal errors to the client in production
-  //       reply.code(500).send({
-  //         error: 'Failed to setup chat context'
-  //         // details: error.message // Maybe only include in dev mode
-  //       });
-  //     }
-  //   }
-  // );
 
   // SSE stream endpoint
   fastify.post(

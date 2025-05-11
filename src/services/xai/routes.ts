@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import Anthropic from '@anthropic-ai/sdk';
+
 import { config } from '../../config/env.js';
 import { initialPrompt } from '../../prompts/xaiPrompts.js';
 
@@ -25,6 +27,7 @@ interface ChatRequest {
   }>;
   systemPrompt?: string;
   threadId: string;
+  selectedAgent: string;
 }
 
 let model = 'grok-3-beta';
@@ -42,21 +45,40 @@ if (model === 'grok-3-mini-beta') {
   tokenCount = 20000;
 }
 
+const client = new Anthropic({
+  apiKey: config.anthropicSecretKey
+});
+
+const correctMessageShape = (selectedAgent: string, chatHistory: any[]) => {
+  // Remove 'id' property from each chatHistory element
+  const sanitizedHistory = Array.isArray(chatHistory)
+    ? chatHistory.map(({ id, senderId, createdAt, ...rest }) => rest)
+    : [];
+  if (selectedAgent === 'grok') {
+    return [{ role: 'system', content: initialPrompt }, ...sanitizedHistory];
+  } else if (selectedAgent === 'claude-3') {
+    return sanitizedHistory;
+  }
+};
+
 export function registerXaiRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/setup-xai-stream',
     { preHandler: authMiddleware },
     async (request, reply) => {
       const user = (request as any).user;
-      console.log('user:', user);
-      console.log('User-Agent:', request.headers['user-agent']);
-      console.log('Cookies:', request.cookies);
+
       if (!user || !user.id) {
         return reply.code(401).send({ error: 'Unauthorized' });
       }
-      const { chatHistory, systemPrompt, threadId } =
+      const { chatHistory, systemPrompt, threadId, selectedAgent } =
         request.body as ChatRequest;
-      request.session.streamContext = { chatHistory, systemPrompt, threadId };
+      request.session.streamContext = {
+        chatHistory,
+        systemPrompt,
+        threadId,
+        selectedAgent
+      };
 
       // Force session to be saved and cookie to be set
       await request.session.save();
@@ -78,17 +100,6 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
     '/xai-stream',
     // { preHandler: authMiddleware },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      console.log('Streaming request received');
-      console.log('User-Agent:', request.headers['user-agent']);
-      console.log('Cookies:', request.cookies);
-      console.log(
-        `Session ID for streaming request: ${request.session.sessionId}`
-      );
-      console.log(
-        'streamContext:',
-        request.session.streamContext ? 'Present' : 'Missing'
-      );
-
       if (!request.session.streamContext) {
         console.error(
           `Stream context not found in session: ${request.session.sessionId}. Ensure /setup-chat-context was called and the session cookie was sent.`
@@ -110,42 +121,81 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       console.log(
         `Retrieved context from session ${request.session.sessionId}, context cleared from session.`
       );
-      const { chatHistory, threadId } = context;
+      const { chatHistory, threadId, selectedAgent } = context;
 
       await addThreadMessage(threadId, chatHistory[chatHistory.length - 1]);
 
       // Prepend initialPrompt as a system message before chatHistory
-      const messages: ChatCompletionMessageParam[] = [
-        { role: 'system', content: initialPrompt },
-        ...(Array.isArray(chatHistory) ? chatHistory : [])
-      ];
+      const messages: ChatCompletionMessageParam[] = correctMessageShape(
+        selectedAgent,
+        chatHistory
+      );
+      console.log('messages:', messages);
+      console.log('selectedAgent:', selectedAgent);
 
       reply.sse(
         (async function* () {
           try {
-            const stream = await openai.chat.completions.create({
-              model: model, // e.g., 'grok-3-mini-beta'
-              messages: messages,
-              // max_tokens: tokenCount,
-              stream: true
-            });
+            let stream;
+            if (selectedAgent === 'grok') {
+              stream = await openai.chat.completions.create({
+                model: model, // e.g., 'grok-3-mini-beta'
+                messages: messages,
+                // max_tokens: tokenCount,
+                stream: true
+              });
+            } else if (selectedAgent === 'claude-3') {
+              console.log('messages:', messages);
+              stream = await client.messages.create({
+                // max_tokens: 8192,
+                max_tokens: 20000,
+                messages: messages,
+                // model: 'claude-3-5-haiku-20241022',
+                model: 'claude-3-7-sonnet-20250219',
+                system: initialPrompt,
+                stream: true
+              });
+            }
 
             let eventCounter = 0;
             let fullOutput = '';
-            for await (const chunk of stream) {
-              eventCounter++;
-              const sseId = `${request.session.sessionId}-${eventCounter}`;
-              // Only send the content field, if present
-              const content = chunk.choices?.[0]?.delta?.content;
-              if (content) {
-                fullOutput += content;
-                yield {
-                  id: sseId,
-                  event: 'message',
-                  data: JSON.stringify({ content })
-                };
+            if (selectedAgent === 'grok') {
+              for await (const chunk of stream) {
+                eventCounter++;
+                const sseId = `${request.session.sessionId}-${eventCounter}`;
+                // Only send the content field, if present
+                const content = chunk.choices?.[0]?.delta?.content;
+                if (content) {
+                  fullOutput += content;
+                  yield {
+                    id: sseId,
+                    event: 'message',
+                    data: JSON.stringify({ content })
+                  };
+                }
+              }
+            } else if (selectedAgent === 'claude-3') {
+              for await (const event of stream) {
+                eventCounter++;
+                const sseId = `${request.session.sessionId}-${eventCounter}`;
+                // Only send the content field, if present
+                console.log('event:', event);
+                let content;
+                if (event.type === 'content_block_delta') {
+                  content = event.delta.text;
+                }
+                console.log('content:', content);
+                if (content) {
+                  fullOutput += content;
+                  yield {
+                    id: sseId,
+                    event: 'message',
+                    data: JSON.stringify({ content })
+                  };
+                }
               }
             }
+
             // After stream ends, print/log the full output
             console.log(
               'Final OpenAI output for session',
