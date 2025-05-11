@@ -399,7 +399,7 @@ export const upsertGameFile = async ({
   gameFiles
 }: SaveGameFilesToDB) => {
   try {
-    console.log('upsertGameFile... gameId: ', gameId);
+    // console.log('upsertGameFile... gameId: ', gameId);
     const upsertedFiles = await Promise.all(
       gameFiles.map(
         async (file: { filename: string; type: string; code: string }) => {
@@ -417,7 +417,7 @@ export const upsertGameFile = async ({
         }
       )
     );
-    console.log('upsertedFiles:', upsertedFiles);
+    console.log('upserted filed');
     return upsertedFiles;
   } catch (error) {
     console.error('Error upserting game files:', error);

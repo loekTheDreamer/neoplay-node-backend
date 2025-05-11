@@ -49,6 +49,11 @@ const client = new Anthropic({
   apiKey: config.anthropicSecretKey
 });
 
+interface ClaudeMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 const correctMessageShape = (selectedAgent: string, chatHistory: any[]) => {
   // Remove 'id' property from each chatHistory element
   const sanitizedHistory = Array.isArray(chatHistory)
@@ -57,8 +62,10 @@ const correctMessageShape = (selectedAgent: string, chatHistory: any[]) => {
   if (selectedAgent === 'grok') {
     return [{ role: 'system', content: initialPrompt }, ...sanitizedHistory];
   } else if (selectedAgent === 'claude-3') {
-    return sanitizedHistory;
+    return sanitizedHistory as ClaudeMessage[];
   }
+  // Default: return an empty array to satisfy type expectations
+  return [];
 };
 
 export function registerXaiRoutes(fastify: FastifyInstance) {
@@ -126,11 +133,9 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
       await addThreadMessage(threadId, chatHistory[chatHistory.length - 1]);
 
       // Prepend initialPrompt as a system message before chatHistory
-      const messages: ChatCompletionMessageParam[] = correctMessageShape(
-        selectedAgent,
-        chatHistory
-      );
-      console.log('messages:', messages);
+      const messages: ChatCompletionMessageParam[] | ClaudeMessage[] =
+        correctMessageShape(selectedAgent, chatHistory);
+
       console.log('selectedAgent:', selectedAgent);
 
       reply.sse(
@@ -145,16 +150,18 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
                 stream: true
               });
             } else if (selectedAgent === 'claude-3') {
-              console.log('messages:', messages);
               stream = await client.messages.create({
                 // max_tokens: 8192,
                 max_tokens: 20000,
-                messages: messages,
+                messages: messages as ClaudeMessage[],
                 // model: 'claude-3-5-haiku-20241022',
                 model: 'claude-3-7-sonnet-20250219',
                 system: initialPrompt,
                 stream: true
               });
+            } else {
+              reply.code(400).send({ error: 'Unknown agent selected.' });
+              return;
             }
 
             let eventCounter = 0;
@@ -163,15 +170,17 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
               for await (const chunk of stream) {
                 eventCounter++;
                 const sseId = `${request.session.sessionId}-${eventCounter}`;
-                // Only send the content field, if present
-                const content = chunk.choices?.[0]?.delta?.content;
-                if (content) {
-                  fullOutput += content;
-                  yield {
-                    id: sseId,
-                    event: 'message',
-                    data: JSON.stringify({ content })
-                  };
+                // Only handle chunks that have 'choices'
+                if ('choices' in chunk && Array.isArray(chunk.choices)) {
+                  const content = chunk.choices[0]?.delta?.content;
+                  if (content) {
+                    fullOutput += content;
+                    yield {
+                      id: sseId,
+                      event: 'message',
+                      data: JSON.stringify({ content })
+                    };
+                  }
                 }
               }
             } else if (selectedAgent === 'claude-3') {
@@ -179,12 +188,17 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
                 eventCounter++;
                 const sseId = `${request.session.sessionId}-${eventCounter}`;
                 // Only send the content field, if present
-                console.log('event:', event);
                 let content;
-                if (event.type === 'content_block_delta') {
-                  content = event.delta.text;
+                if ('type' in event && event.type === 'content_block_delta') {
+                  if (
+                    event.delta &&
+                    'text' in event.delta &&
+                    typeof event.delta.text === 'string'
+                  ) {
+                    content = event.delta.text;
+                  }
                 }
-                console.log('content:', content);
+
                 if (content) {
                   fullOutput += content;
                   yield {
@@ -197,12 +211,6 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
             }
 
             // After stream ends, print/log the full output
-            console.log(
-              'Final OpenAI output for session',
-              request.session.sessionId,
-              ':',
-              fullOutput
-            );
 
             await addThreadMessage(threadId, {
               role: 'assistant',
