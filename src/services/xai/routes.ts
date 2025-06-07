@@ -61,7 +61,7 @@ const correctMessageShape = (selectedAgent: string, chatHistory: any[]) => {
     : [];
   if (selectedAgent === 'grok') {
     return [{ role: 'system', content: initialPrompt }, ...sanitizedHistory];
-  } else if (selectedAgent === 'claude-3') {
+  } else if (selectedAgent === 'claude-3' || selectedAgent === 'claude-4') {
     return sanitizedHistory as ClaudeMessage[];
   }
   // Default: return an empty array to satisfy type expectations
@@ -149,13 +149,30 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
                 // max_tokens: tokenCount,
                 stream: true
               });
-            } else if (selectedAgent === 'claude-3') {
+            } else if (
+              selectedAgent === 'claude-3' ||
+              selectedAgent === 'claude-4'
+            ) {
+              console.log('selected agent:222:::: ', selectedAgent);
+
+              let claudeModel = '';
+              if (selectedAgent === 'claude-3') {
+                claudeModel = 'claude-3-7-sonnet-20250219';
+              } else {
+                claudeModel = 'claude-sonnet-4-20250514';
+              }
+              console.log('claudeModel:', claudeModel);
+
               stream = await client.messages.create({
                 // max_tokens: 8192,
                 max_tokens: 20000,
                 messages: messages as ClaudeMessage[],
                 // model: 'claude-3-5-haiku-20241022',
-                model: 'claude-3-7-sonnet-20250219',
+                // model:
+                //   selectedAgent === 'claude-3'
+                //     ? 'claude-3-7-sonnet-20250219'
+                //     : 'claude-sonnet-4-20250514',
+                model: claudeModel,
                 system: initialPrompt,
                 stream: true
               });
@@ -183,7 +200,10 @@ export function registerXaiRoutes(fastify: FastifyInstance) {
                   }
                 }
               }
-            } else if (selectedAgent === 'claude-3') {
+            } else if (
+              selectedAgent === 'claude-3' ||
+              selectedAgent === 'claude-4'
+            ) {
               for await (const event of stream) {
                 eventCounter++;
                 const sseId = `${request.session.sessionId}-${eventCounter}`;

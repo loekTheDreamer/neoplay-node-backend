@@ -186,7 +186,7 @@ export async function publish({
   }
 }
 
-export const getPublishedGames = async (userId: string) => {
+export const getPublishedGames = async (userId?: string) => {
   try {
     const publishedGames = await prisma.game.findMany({
       where: {
@@ -206,6 +206,10 @@ export const getPublishedGames = async (userId: string) => {
         }
       }
     });
+    if (!userId) {
+      // If no userId, return games without likedByMe or playedByMe
+      return publishedGames;
+    }
     const gameIds = publishedGames.map((game) => game.id);
     // Get all likes for this user for these games
     const userLikes = await prisma.like.findMany({
@@ -257,7 +261,10 @@ export async function playGame(gameId: string): Promise<void> {
   });
 }
 
-export async function addPlayRecord(userId: string, gameId: string): Promise<void> {
+export async function addPlayRecord(
+  userId: string,
+  gameId: string
+): Promise<void> {
   // Create a Play record if one does not already exist for this user/game
   await prisma.play.upsert({
     where: {
