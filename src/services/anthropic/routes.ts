@@ -18,7 +18,9 @@ interface ChatRequest {
 
 // let model = 'claude-3-7-sonnet-20250219';
 // const model2 = "claude-3-5-sonnet-20241022"
-let model = 'claude-3-5-haiku-20241022';
+// let model = 'claude-3-5-haiku-20241022';
+
+let model = 'claude-sonnet-4-20250514';
 
 console.log('USING MODEL:', model);
 let tokenCount = 0;
