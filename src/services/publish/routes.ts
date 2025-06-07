@@ -75,19 +75,19 @@ export function registerPublishRoutes(fastify: FastifyInstance) {
   );
   fastify.get(
     '/publish',
-    {
-      preHandler: authMiddleware
-    },
+    // {
+    //   preHandler: authMiddleware
+    // },
     async (request, reply) => {
       console.log('ddude we are here?');
-      const user = (request as any).user as JwtPayload;
+      const user = ((request as any).user as JwtPayload) || null;
       console.log('user:', user);
-      if (!user || !user.id) {
-        return reply.code(401).send({ error: 'Unauthorized' });
-      }
+      // if (!user || !user.id) {
+      //   return reply.code(401).send({ error: 'Unauthorized' });
+      // }
 
       try {
-        const publishedGames = await getPublishedGames(user.id);
+        const publishedGames = await getPublishedGames(user?.id);
 
         return reply.code(200).send({ publishedGames });
         // return reply.send({ success: true });
