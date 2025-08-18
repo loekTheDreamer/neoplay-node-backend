@@ -10,7 +10,7 @@ import {
 import { authMiddleware } from '../../middleware/auth.js';
 import prisma from './prisma.js'; // adjust the path as needed
 import { createGame } from '../game/gameHelpers.js';
-
+import { config } from '../../config/env.js';
 interface User {
   address: string;
 }
@@ -18,7 +18,15 @@ interface User {
 export function registerDbRoutes(fastify: FastifyInstance) {
   fastify.post('/auth/nonce', async (request, reply) => {
     console.log('/auth/nonce');
-    const { address } = request.body as { address: string };
+    const { address, password } = request.body as {
+      address: string;
+      password: string;
+    };
+    // console.log('address:', address);
+    console.log('password:', password);
+    if (password !== config.BETA_PASSWORD) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
     const nonce = uuidv4();
     try {
       let user = await prisma.user.findUnique({
