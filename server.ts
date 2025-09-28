@@ -17,6 +17,9 @@ import { dirname } from 'path';
 import { registerXaiRoutes } from './src/services/xai/routes.js';
 import { registerDbRoutes } from './src/services/db/route.js';
 import { registerPublishRoutes } from './src/services/publish/routes.js';
+import 'dotenv/config';
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
